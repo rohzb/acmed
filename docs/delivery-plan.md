@@ -1,4 +1,4 @@
-# acmed Incremental Delivery
+# acmed Delivery Plan
 
 > [!TIP]
 > **TL;DR**

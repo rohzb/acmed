@@ -1,12 +1,10 @@
-# acmed Project Brief
+# acmed Overview
 
 > [!TIP]
 > **TL;DR**
 > `acmed` is a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and an optional ACME-compatible adapter.
 
 ## 1. Purpose
-
-This folder contains the design set for a new Python project named `acmed`.
 
 The project goal is to build a central certificate brokerage service for internal infrastructure. The service accepts certificate requests, evaluates whether the requester is allowed to obtain the requested names, optionally performs challenge validation, delegates issuance to pluggable backends, and stores the resulting artifacts and audit trail.
 
@@ -35,19 +33,7 @@ The project goal is to build a central certificate brokerage service for interna
 - local ACME integration testing with Pebble
 - real-client ACME smoke tests with `certbot` and `acme.sh`
 
-## 4. Reading Order
-
-1. [`description.md`](./description.md)
-2. [`architecture.md`](./architecture.md)
-3. [`data-model.md`](./data-model.md)
-4. [`security-operations.md`](./security-operations.md)
-5. [`incremental-delivery.md`](./incremental-delivery.md)
-6. [`implementation-guide.md`](./implementation-guide.md)
-7. [`implementation-checklist.md`](./implementation-checklist.md)
-8. [`acme-api-reference.md`](./acme-api-reference.md)
-9. [`acme-compatibility.md`](./acme-compatibility.md)
-
-## 5. Fast Mental Model
+## 4. Fast Mental Model
 
 - The broker API is the primary interface.
 - The worker loop drives the order lifecycle.
@@ -55,6 +41,6 @@ The project goal is to build a central certificate brokerage service for interna
 - Broker-native challenge handling and ACME challenge handling are different workflows.
 - The ACME adapter must follow the explicit contract in [`acme-api-reference.md`](./acme-api-reference.md).
 
-## 6. Success Statement
+## 5. Success Statement
 
 `acmed` is successful when a maintainer can implement a small, secure broker core that accepts normalized certificate requests, applies internal policy correctly, processes them asynchronously, issues through pluggable backends, stores durable artifacts and audit records, and exposes ACME behavior that matches the documented contract closely enough to pass smoke tests with both `certbot` and `acme.sh`.

@@ -4,7 +4,7 @@
 > **TL;DR**
 > This is the shortest implementation-oriented checklist for building the `acmed` MVP from the design documents in this folder.
 
-Use [`incremental-delivery.md`](./incremental-delivery.md) to decide what to build first and what to delay to later iterations.
+Use [`delivery-plan.md`](./delivery-plan.md) to decide what to build first and what to delay to later iterations.
 
 ## 1. Iteration 0: Bootstrapping
 
@@ -94,11 +94,3 @@ Use [`incremental-delivery.md`](./incremental-delivery.md) to decide what to bui
 - [ ] Security defaults are enforced.
 - [ ] ACME behavior matches the documented supported feature set.
 - [ ] `certbot` and `acme.sh` smoke tests pass.
-
-## 10. Authoritative References
-
-- [ ] Architecture decisions stay aligned with [`architecture.md`](./architecture.md).
-- [ ] Order lifecycle, schema, storage, and config stay aligned with [`data-model.md`](./data-model.md).
-- [ ] Security and runtime behavior stay aligned with [`security-operations.md`](./security-operations.md).
-- [ ] Delivery sequencing stays aligned with [`incremental-delivery.md`](./incremental-delivery.md).
-- [ ] ACME-visible behavior stays aligned with [`acme-api-reference.md`](./acme-api-reference.md).

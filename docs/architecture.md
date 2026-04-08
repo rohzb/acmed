@@ -164,12 +164,6 @@ sequenceDiagram
 
 The ACME adapter must preserve ACME-visible behavior, but the broker core must stay independent of ACME semantics.
 
-## 7. Where Other Details Live
+## 7. Related Documents
 
-- Order lifecycle, schema, storage, and config shape: [`data-model.md`](./data-model.md)
-- Security rules, runtime topology, and operational handling: [`security-operations.md`](./security-operations.md)
-- Delivery sequencing and iteration boundaries: [`incremental-delivery.md`](./incremental-delivery.md)
-- Build order, tests, and acceptance criteria: [`implementation-guide.md`](./implementation-guide.md)
-- Execution-oriented task sequence: [`implementation-checklist.md`](./implementation-checklist.md)
-- ACME-visible protocol behavior: [`acme-api-reference.md`](./acme-api-reference.md)
-- ACME client testing and compatibility notes: [`acme-compatibility.md`](./acme-compatibility.md)
+For topic ownership and navigation, use [`../README.md`](../README.md). The main companion documents are [`data-model.md`](./data-model.md), [`security-operations.md`](./security-operations.md), and [`delivery-plan.md`](./delivery-plan.md).

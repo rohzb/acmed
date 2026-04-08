@@ -2,17 +2,17 @@
 
 > [!TIP]
 > **TL;DR**
-> Build the broker core first, keep interfaces small, keep the package layout compact, and add the ACME adapter only after the broker flow is solid and the ACME contract can be implemented truthfully.
+> Use this document for code generation and implementation conventions. Use [`delivery-plan.md`](./delivery-plan.md) for sequencing and MVP scope decisions.
 
 ## 1. Goal
 
-Use this document as the implementation instruction set for generating the initial `acmed` codebase. It turns the project brief and architecture into an implementation order, package plan, configuration contract, testing plan, and acceptance checklist.
+Use this document as the implementation instruction set for generating the initial `acmed` codebase. It turns the project brief and architecture into code-shape guidance, package responsibilities, runtime contracts, and validation rules.
 
 For a shorter execution-focused version, use [`implementation-checklist.md`](./implementation-checklist.md).
 
 For ACME client smoke-test examples and compatibility notes, use [`acme-compatibility.md`](./acme-compatibility.md).
 
-For the intended delivery style and iteration boundaries, use [`incremental-delivery.md`](./incremental-delivery.md).
+For delivery order, iteration boundaries, testing stages, and MVP done criteria, use [`delivery-plan.md`](./delivery-plan.md).
 
 ## 2. Implementation Priorities
 
@@ -28,143 +28,7 @@ The code generation effort should optimize for:
 
 For the MVP, prefer a modular monolith over a highly segmented architecture.
 
-## 3. Build Order
-
-Before Phase 1, make these structural decisions:
-
-- start with a compact package layout
-- keep the worker loop SQLite-backed
-- do not build a queue abstraction
-- do not build registry frameworks
-- keep transport, secret handling, and authorization fail-closed by default
-
-### Phase 1: Models and contracts
-
-Implement:
-
-- typed config models
-- order domain models
-- state machine definitions
-- explicit semantics for `request_source`, `private_key_policy`, `csr_source`, and `dedupe_key`
-- plugin protocols or abstract base classes
-- error classes
-- security-sensitive value handling rules for identities, secrets, and artifacts
-
-Deliverable:
-
-- the domain layer compiles and tests without any HTTP server
-
-### Phase 2: Persistence and artifacts
-
-Implement:
-
-- SQLite schema and repository layer
-- artifact path layout
-- audit event persistence
-- worker-claim persistence on order rows
-- order deduplication key handling
-- secure file and directory permission behavior
-- secret-redaction helpers for logs and audit metadata
-- audit-backed recording for state transitions and authorization decisions unless dedicated tables become justified
-
-Deliverable:
-
-- orders can be created, updated, queried, and audited locally
-
-### Phase 3: Broker services
-
-Implement:
-
-- order normalization
-- policy resolution
-- order creation service
-- retry and expiration logic
-- worker pickup integration through persisted `pending` orders
-
-Deliverable:
-
-- the broker service can create durable `pending` orders that the worker loop can discover
-
-### Phase 4: API layer
-
-Implement:
-
-- broker API routes
-- admin inspection routes limited to `GET /api/v1/admin/orders`, `GET /api/v1/admin/orders/<order_id>`, and `GET /api/v1/admin/audit-events/<order_id>`
-- health routes limited to `GET /health/live` and `GET /health/ready`
-- a compact broker-native request and response schema for `POST /api/v1/orders` and `GET /api/v1/orders/<order_id>`
-- a minimal response contract for `GET /api/v1/orders` and `GET /api/v1/admin/orders`
-- request and response schemas
-- identity extraction from API token or mTLS metadata
-- HTTPS or deployment-time TLS expectations
-- access control for order reads and admin-only endpoints
-
-Deliverable:
-
-- API tests prove that order creation and order inspection work
-- the admin surface stays limited to the documented MVP inspection endpoints
-
-### Phase 5: Worker and plugins
-
-Implement:
-
-- worker loop
-- authorizer execution
-- challenge execution
-- issuer execution
-- terminal and retry state handling
-- fail-closed handling for authorization, secret lookup, and subprocess safety checks
-
-Deliverable:
-
-- a full end-to-end issuance path using a mock issuer
-
-### Phase 6: External issuer skeletons
-
-Implement:
-
-- controlled subprocess execution wrapper
-- command-based issuer skeleton
-- broker-native challenge-provider skeletons
-- sanitized subprocess environment and fixed executable-path handling
-
-Deliverable:
-
-- the external integration surfaces exist without claiming full production readiness
-
-### Phase 7: ACME adapter
-
-Implement:
-
-- the ACME resources defined in [`acme-api-reference.md`](./acme-api-reference.md)
-- adapter-local models
-- RFC 8555-compatible request and response handling for the supported feature set
-- explicit identifier support rules, ownership checks, and ACME-compatible error handling
-- fixed v1 certificate response format and truthful directory advertisement
-- account-orders resource, DNS normalization rules, and explicit EAB posture
-- translation tests
-
-Deliverable:
-
-- the adapter interoperates with common clients such as `certbot` and `acme.sh` for the supported feature set without redefining the core broker model
-
-## 3.1 Required Test Stack
-
-Use:
-
-- `pytest` as the required Python test runner
-- fast local tests for unit and service behavior
-- Pebble as the primary local ACME integration test server
-- `certbot` and `acme.sh` for real-client smoke tests
-- Let’s Encrypt staging only as optional external verification, not as the default automated dependency
-
-Why:
-
-- `pytest` gives a standard, scriptable Python test entry point
-- Pebble is specifically intended for CI and development testing of ACME behavior
-- Let’s Encrypt staging is useful, but it is external and less stable for routine automated testing
-
-## 4. Recommended Lean Package Responsibilities
+## 3. Recommended Lean Package Responsibilities
 
 | Package | Responsibility |
 |--------|-----------------|
@@ -187,7 +51,7 @@ Entrypoint responsibility:
 
 - `main.py` should load config, initialize storage, start the worker loop, and serve the HTTP application for the broker-first MVP
 
-## 5. Design Rules for Generated Code
+## 4. Design Rules for Generated Code
 
 1. Keep the order model protocol-neutral.
 2. Do not embed issuer-specific logic inside the state machine.
@@ -208,7 +72,7 @@ Entrypoint responsibility:
 17. Make ACME identifier support, ownership checks, and error behavior explicit in code and tests.
 18. Make DNS normalization and account-scoped resource ownership explicit rather than implicit.
 
-## 6. Runtime Contracts
+## 5. Runtime Contracts
 
 For order lifecycle, schema shape, storage layout, and configuration examples, see [`data-model.md`](./data-model.md).
 
@@ -276,35 +140,11 @@ Security responsibilities:
 - distinguish sensitive files such as `private.key` from public certificate outputs
 - support cleanup or retention rules for sensitive artifacts
 
-## 7. Configuration Requirements
+## 6. Configuration Validation Rules
 
 The canonical configuration example lives in [`data-model.md`](./data-model.md).
 
-For the broker-first initial milestone, the config model should include:
-
-- server bind settings
-- storage paths
-- identity provider settings
-- worker limits
-- issuer definitions
-- challenge provider definitions
-- authorizer definitions
-- policy rules
-- logging level or audit options
-- transport-security settings
-- secret-source settings or secret references
-- broker-first retry limit and order lifetime settings
-
-For the broker-first MVP, keep admin API configuration minimal. Prefer one admin authentication mechanism shared with the main service rather than a separate admin subsystem.
-
-Add these settings when the implementation reaches the ACME iteration:
-
-- ACME adapter enablement and directory settings
-- ACME supported challenge configuration
-- ACME optional endpoint toggles such as revocation and key change
-- ACME External Account Binding posture
-
-Validation expectations:
+When generating config models and validation logic:
 
 - fail startup on unknown plugin references
 - fail startup on invalid path configuration
@@ -316,130 +156,7 @@ Validation expectations:
 - reject plaintext secret placeholders in committed-style configuration examples
 - reject ACME configuration that advertises unsupported challenge types or required endpoints
 
-## 8. Testing Requirements
-
-For the broker-first milestone, add tests for:
-
-- valid and invalid state transitions
-- order deduplication decisions
-- config parsing success and failure
-- policy evaluation for subnet and DNS-based authorizers
-- mock issuer success and failure
-- worker processing from `pending` to `issued`
-- denied order handling
-- artifact storage writes
-- broker API create and read endpoints
-- broker and admin order-list response shape
-- worker claim acquisition and expired-claim recovery
-- retryable versus terminal failure classification
-- retry exhaustion behavior
-- order expiration behavior
-- `GET /health/live` and `GET /health/ready`
-- TLS or secure deployment configuration checks
-- deny-by-default authorization behavior
-- admin endpoint access restrictions
-- secret redaction behavior
-- safe subprocess invocation behavior
-- artifact permission behavior where the platform supports it
-
-When the implementation reaches the ACME iteration, add tests for:
-
-- ACME adapter translation boundaries
-- ACME account creation and account lookup flow
-- ACME `newOrder` to `finalize` to certificate retrieval flow
-- POST-as-GET resource fetches
-- nonce issuance and bad-nonce retry handling
-- ACME challenge acknowledgement and polling behavior
-- CSR mismatch and `orderNotReady` style failure cases
-- unsupported identifier rejection and wildcard rules
-- ACME resource ownership enforcement
-- JWS `jwk` versus `kid` handling rules
-- DNS identifier normalization behavior
-- an end-to-end smoke test with `certbot`
-- an end-to-end smoke test with `acme.sh`
-
-Documentation-oriented checks should also verify:
-
-- key modules have top-level docstrings
-- public functions and methods are typed
-- public classes and methods include docstrings
-
-Testing strategy:
-
-- use `pytest` as the canonical runner for all Python tests
-- keep most tests local and deterministic
-- prefer realistic service-level tests over excessive mocking
-- run ACME integration tests primarily against Pebble
-- use real-client smoke tests with `certbot` and `acme.sh` against the local ACME test environment first
-- use Let’s Encrypt staging only for optional compatibility verification, pre-release confidence checks, or manual validation
-
-Suggested test layers:
-
-- unit or service tests:
-  broker logic, state machine, normalization, validation, policy evaluation
-- integration tests:
-  SQLite persistence, worker flow, artifact writing, ACME protocol behavior against Pebble
-- real-client smoke tests:
-  `certbot` and `acme.sh` against the documented supported feature set
-- optional external verification:
-  Let’s Encrypt staging when appropriate and when the environment supports it
-
-Operational and security-oriented test expectations should stay aligned with [`security-operations.md`](./security-operations.md).
-
-## 9. Documentation Requirements
-
-Generate at least:
-
-- one top-level project `README` for the generated codebase
-- example YAML configuration
-- developer testing notes that explain local `pytest`, Pebble integration tests, and optional staging verification
-- developer notes describing how to run the API and worker
-- limitations and next-step notes for incomplete integrations
-- coding standards documentation that states banner, typing, and docstring requirements
-- a short architecture note that explains why the MVP intentionally avoids extra moving parts
-- a security note that documents default protections, threat assumptions, and operator responsibilities
-- a short admin API note that lists the MVP admin-only endpoints and their read-only intent
-- a short health-endpoint note that defines the MVP liveness and readiness behavior
-- a short broker API note that defines create, read, and list response shapes
-- an ACME compatibility note that lists supported endpoints, challenge types, and known client-facing limitations
-- the authoritative ACME API reference in [`acme-api-reference.md`](./acme-api-reference.md)
-- explicit notes on ACME identifier support, ownership rules, error behavior, EAB posture, and account-orders behavior
-
-Documentation should emphasize:
-
-- broker-first architecture
-- difference between authorization and challenge validation
-- current MVP limits
-- safe handling of issuer command execution
-- the deliberate simplicity of the architecture
-- the deliberate use of secure defaults
-- the exact ACME feature set offered to common clients
-- which optional ACME endpoints are implemented versus intentionally absent
-
-## 10. Acceptance Criteria
-
-The MVP is complete when:
-
-- a client can create a certificate order through the broker API
-- the order is persisted and processed asynchronously
-- policy evaluation can allow or deny the order
-- a mock issuer can produce a successful issued result
-- artifacts and audit events are stored durably
-- failures transition to a clear terminal or retryable state
-- the ACME adapter exists only as a translation layer and does not distort the broker model
-- important source files include file banners
-- public Python code is type hinted
-- important modules, classes, functions, and methods are documented with usable docstrings
-- the core runtime remains understandable without reading more than a handful of main files
-- non-health endpoints require authentication
-- authorization fails closed when policy is missing or ambiguous
-- secrets are redacted from logs and audit records
-- sensitive artifacts use restrictive permissions
-- subprocess-based issuers run through a hardened wrapper rather than raw shell execution
-- the ACME adapter can be used by normal clients through a standard directory URL for the documented supported feature set
-- the ACME adapter has passed real-client smoke tests with both `certbot` and `acme.sh` for the documented supported feature set
-
-## 11. Avoid During Generation
+## 7. Avoid During Generation
 
 Do not:
 
@@ -459,16 +176,3 @@ Do not:
 - pass unvalidated input into shell commands
 - expose broker-native behaviors through the ACME adapter when they conflict with standard ACME client expectations
 - call the adapter compatible with common clients without implementing the required ACME resource flow and real-client tests
-
-## 12. Recommended First Milestone
-
-The first milestone should deliver a local development workflow where:
-
-1. YAML config loads successfully.
-2. The API accepts a broker order.
-3. SQLite stores the order.
-4. A worker authorizes it.
-5. A mock issuer returns certificate material.
-6. The order reaches `issued`.
-7. Tests cover the happy path and one denial path.
-8. The main order flow remains readable in a compact set of modules.

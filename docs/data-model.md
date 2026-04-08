@@ -193,7 +193,7 @@ If the ACME adapter is enabled later, add only the persistence needed to support
 - `acme_challenges`
 - nonce storage only if the chosen nonce strategy requires durable state
 
-Do not add ACME-specific persistence in the first broker-native milestone unless the implementation has reached the ACME iteration described in [`incremental-delivery.md`](./incremental-delivery.md).
+Do not add ACME-specific persistence in the first broker-native milestone unless the implementation has reached the ACME iteration described in [`delivery-plan.md`](./delivery-plan.md).
 
 ### 3.2 Minimal ACME Persistence Model
 
