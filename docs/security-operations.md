@@ -32,6 +32,8 @@ Design for at least these threats:
 
 - fail closed on parse errors, missing references, or ambiguous matches
 - prefer exact-name or tightly scoped rules over broad wildcard grants
+- validate syntax-tagged policy entries at startup so malformed or over-broad entries never reach runtime matching
+- do not enable regex-backed policy matching by default; treat it as a higher-risk extension that needs explicit validation limits
 - treat the `no-challenge` path as a high-trust policy path that must be explicit and auditable
 - restrict broker order access to the original requester or an administrator
 

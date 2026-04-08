@@ -44,12 +44,12 @@ Use this table as the truth source for what the MVP should and should not claim 
 | Certificate download | required |
 | DNS identifiers | required |
 | Wildcards | optional; only with full `dns-01` support |
-| `http-01` | required if advertised |
-| `dns-01` | required if advertised |
+| `http-01` | required |
+| `dns-01` | required |
 | `tls-alpn-01` | optional |
 | `revokeCert` | optional |
 | `keyChange` | optional |
-| External Account Binding | optional; disabled by default unless explicitly implemented |
+| External Account Binding | required |
 
 ## 4. Base Conventions
 
@@ -131,8 +131,20 @@ Challenge validation should use normal ACME key-authorization semantics:
 
 ### 4.6 External Account Binding posture
 
-- unless explicitly implemented, the MVP should omit `meta.externalAccountRequired`
-- if external account binding is not supported, reject EAB-specific expectations explicitly rather than implying support
+The MVP should require ACME External Account Binding for new account creation.
+
+Required posture:
+
+- advertise `meta.externalAccountRequired: true` in the directory object
+- require EAB on `newAccount` for normal account creation
+- model the EAB secret as an operator-provisioned enrollment credential such as a key identifier plus shared HMAC secret
+- reject account-creation attempts that omit EAB or present an invalid EAB payload
+
+Implementation boundary:
+
+- treat EAB as the standards-aligned answer for ACME-side enrollment gating
+- keep EAB limited to account bootstrap; normal ACME resource access should continue to use standard account-key authentication after account creation
+- if a future non-standard pre-shared-password enrollment mode is ever added, document it separately and do not blur it into the RFC-aligned ACME contract
 
 ## 5. Endpoint Summary
 
@@ -178,7 +190,7 @@ It may also include:
 - `meta.termsOfService`
 - `meta.website`
 - `meta.caaIdentities`
-- `meta.externalAccountRequired` if external account binding is actually supported and required
+- `meta.externalAccountRequired`, which should be `true` for the MVP
 
 Rules:
 
@@ -217,8 +229,15 @@ Expected behavior:
 
 - support contact information when supplied
 - support agreement flags as needed by policy
+- require valid External Account Binding for new account creation
 - return `Location` with the account URL
 - return the account object
+
+EAB rules for the MVP:
+
+- accept `onlyReturnExisting` without requiring a new EAB verification step when the request is only retrieving an already bound account
+- bind the created ACME account to the validated EAB credential at account-creation time
+- record enough enrollment metadata for audit without persisting raw shared-secret material
 
 Minimum account object fields:
 

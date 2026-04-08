@@ -76,7 +76,11 @@ Entrypoint responsibility:
 
 ## 5. Runtime Contracts
 
-For order lifecycle, schema shape, storage layout, and configuration examples, see [`data-model.md`](./data-model.md).
+For order lifecycle, schema shape, and storage layout, see [`data-model.md`](./data-model.md).
+
+For configuration examples and policy matching rules, see [`policy-config.md`](./policy-config.md).
+
+For the broker-native HTTP contract, see [`broker-api-reference.md`](./broker-api-reference.md).
 
 For security baseline, runtime topology, startup behavior, and failure handling, see [`security-operations.md`](./security-operations.md).
 
@@ -105,6 +109,7 @@ Implementation defaults for the broker-first MVP:
 - normalize DNS identifiers once near the API boundary and pass the normalized form through the rest of the broker core
 - resolve one effective policy or fail closed; do not rely on implicit first-match behavior
 - make duplicate-create handling explicit so equivalent requests return one logical active order
+- compile policy entries from their declared `syntax` value into a small explicit matcher rather than relying on ad hoc string checks throughout the codebase
 
 ### Worker processor
 
@@ -159,7 +164,7 @@ Security responsibilities:
 
 ## 6. Configuration Validation Rules
 
-The canonical configuration example lives in [`data-model.md`](./data-model.md).
+The canonical configuration example lives in [`policy-config.md`](./policy-config.md).
 
 When generating config models and validation logic:
 
@@ -172,6 +177,9 @@ When generating config models and validation logic:
 - reject missing TLS configuration for non-local deployments
 - reject plaintext secret placeholders in committed-style configuration examples
 - reject ACME configuration that advertises unsupported challenge types or required endpoints
+- reject unsupported `allowed_domains` pattern syntax at startup rather than falling back to permissive matching
+- reject `allowed_domains` entries that omit `syntax` or `value`
+- reject regex-backed policy patterns unless regex policy mode is explicitly enabled by a later implementation slice
 
 ## 7. Minimum Test Contract
 
@@ -183,15 +191,19 @@ Broker-first tests should cover at least:
 - DNS normalization and deduplication behavior
 - order state-machine legality
 - policy selection ambiguity and deny-by-default behavior
+- policy entry parsing and exact versus suffix matching behavior
+- wildcard-identifier authorization behavior against suffix policies
+- syntax-tagged regex policy rejection behavior when regex mode is disabled
 - worker claim, recovery, and retry classification behavior
 - artifact permission handling for sensitive outputs
 
 ACME tests should cover at least:
 
 - nonce issuance and bad-nonce recovery behavior
+- External Account Binding enforcement for account creation
 - account ownership enforcement for account, order, authorization, challenge, and certificate resources
 - POST-as-GET behavior and JWS `url` validation
-- order, authorization, and challenge status progression for the documented challenge set
+- order, authorization, and challenge status progression for both `http-01` and `dns-01`
 - finalize CSR matching and certificate retrieval behavior
 
 ## 8. Avoid During Generation

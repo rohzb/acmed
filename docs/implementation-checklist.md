@@ -26,6 +26,8 @@ This file is intentionally terse. Use the other documents for the underlying sys
 - [ ] Implement audit-event writes.
 - [ ] Implement deduplication key handling.
 - [ ] Normalize broker-native requests.
+- [ ] Parse and validate `allowed_domains` entries with explicit `syntax` and `value` fields.
+- [ ] Support `exact` and `suffix` policy syntax in the broker-first matcher.
 - [ ] Resolve policy and issuer/challenge choices.
 - [ ] Persist new orders as `pending`.
 - [ ] Implement asynchronous worker pickup.
@@ -44,13 +46,14 @@ This file is intentionally terse. Use the other documents for the underlying sys
 - [ ] Implement at least one authorizer.
 - [ ] Implement a mock issuer.
 - [ ] `pytest` is configured as the canonical Python test runner.
-- [ ] State machine tests, config validation tests, broker API tests, and happy-path worker tests pass.
+- [ ] State machine tests, config validation tests, broker API tests, policy-matching tests, and happy-path worker tests pass.
 
 ## 3. Iteration 2: Failure And Denial Paths
 
 - [ ] Add denial-path handling.
 - [ ] Add failure-path handling.
 - [ ] Add retry classification and bounded retry behavior.
+- [ ] Reject unsupported or malformed policy matcher entries fail-closed.
 - [ ] Add secret-redaction checks.
 - [ ] Add worker denial-path and failure-path tests.
 
@@ -71,6 +74,8 @@ This file is intentionally terse. Use the other documents for the underlying sys
 - [ ] Implement the ACME resources defined in [`acme-api-reference.md`](./acme-api-reference.md).
 - [ ] Keep ACME behavior protocol-correct and broker-internal behavior separate.
 - [ ] Enforce identifier support rules, ownership checks, and DNS normalization.
+- [ ] Require External Account Binding for ACME account creation.
+- [ ] Implement both `http-01` and `dns-01` challenge flows.
 - [ ] Advertise only the ACME features actually implemented.
 - [ ] ACME integration tests run against Pebble.
 - [ ] ACME protocol tests for the documented supported feature set.
@@ -86,7 +91,8 @@ This file is intentionally terse. Use the other documents for the underlying sys
 - [ ] Keep banners, type hints, and docstrings in generated code.
 - [ ] Provide a top-level README.
 - [ ] Provide example configuration.
-- [ ] Document the broker-native request and response shape for `POST /api/v1/orders` and `GET /api/v1/orders/<order_id>`.
+- [ ] Keep broker-native request and response behavior documented in [`broker-api-reference.md`](./broker-api-reference.md).
+- [ ] Keep policy and configuration behavior documented in [`policy-config.md`](./policy-config.md).
 - [ ] Keep ACME-visible behavior documented in [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 9. MVP Done

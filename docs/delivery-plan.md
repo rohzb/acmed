@@ -14,7 +14,7 @@ The goal is to keep the project moving through working iterations instead of att
 
 Document boundaries:
 
-- use [`architecture.md`](./architecture.md), [`data-model.md`](./data-model.md), and [`security-operations.md`](./security-operations.md) for the system contract
+- use [`architecture.md`](./architecture.md), [`data-model.md`](./data-model.md), [`policy-config.md`](./policy-config.md), [`broker-api-reference.md`](./broker-api-reference.md), and [`security-operations.md`](./security-operations.md) for the system contract
 - use this document for sequencing, stop rules, and MVP completion
 - use [`implementation-checklist.md`](./implementation-checklist.md) for day-to-day execution
 - use [`acme-api-reference.md`](./acme-api-reference.md) for ACME-visible behavior
@@ -195,9 +195,11 @@ Include:
 - directory
 - nonce
 - account creation
+- External Account Binding for account creation
 - order creation
 - order polling
 - authorization and challenge resources
+- both `http-01` and `dns-01` challenge flows
 - finalize
 - certificate retrieval
 
@@ -247,7 +249,6 @@ Possible additions:
 - `revokeCert`
 - `keyChange`
 - `tls-alpn-01`
-- External Account Binding
 
 Rules:
 

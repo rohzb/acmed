@@ -30,7 +30,7 @@ The project goal is to build a central certificate brokerage service for interna
 - persistent runtime state
 - pluggable authorizers, challenge providers, and issuers
 - structured audit logging
-- ACME adapter for the documented supported feature set
+- ACME adapter for the documented supported feature set, delivered after the broker-native milestones rather than in the first implementation slice
 - automated testing with `pytest`
 - local ACME integration testing with Pebble
 - real-client ACME smoke tests with `certbot` and `acme.sh`

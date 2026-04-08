@@ -27,7 +27,7 @@ In scope:
 - pluggable authorizers, challenge providers, and issuers
 - persistent runtime state
 - auditability
-- ACME-compatible adapter added after the broker-native milestones and enabled only when needed
+- ACME-compatible adapter added after the broker-native milestones, enabled only when needed at runtime, and still part of the documented MVP scope
 
 Out of scope for v1:
 
@@ -168,4 +168,4 @@ The ACME adapter must preserve ACME-visible behavior, but the broker core must s
 
 ## 7. Related Documents
 
-For topic ownership and navigation, use [`../README.md`](../README.md). The main companion documents are [`data-model.md`](./data-model.md), [`security-operations.md`](./security-operations.md), and [`delivery-plan.md`](./delivery-plan.md).
+For topic ownership and navigation, use [`../README.md`](../README.md). The main companion documents are [`data-model.md`](./data-model.md), [`policy-config.md`](./policy-config.md), [`broker-api-reference.md`](./broker-api-reference.md), [`security-operations.md`](./security-operations.md), and [`delivery-plan.md`](./delivery-plan.md).

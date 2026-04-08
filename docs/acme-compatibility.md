@@ -20,6 +20,8 @@ Use this document for:
 - advertise only the ACME features actually implemented
 - do not claim compatibility with a named client unless that client has been tested
 - keep the documented supported feature set synchronized with the real implementation
+- for the MVP, support both `http-01` and `dns-01`
+- for the MVP, require ACME External Account Binding for account creation and test clients with that enrollment flow
 
 Preferred testing environments:
 
@@ -34,6 +36,8 @@ Pebble setup assumption:
 
 These examples are illustrative smoke-test targets, not production runbooks.
 
+They intentionally omit exact External Account Binding command-line flags because client support and flag names can vary by tool and version. The smoke-test workflow must still exercise EAB even when the short examples below do not show the full enrollment command.
+
 ### certbot example
 
 ```bash
@@ -44,6 +48,8 @@ certbot certonly \
   -d example.org
 ```
 
+The real smoke test should also cover an `http-01` path, for example with a manual or test harness flow that provisions the token response material expected by the server.
+
 ### acme.sh example
 
 ```bash
@@ -53,6 +59,8 @@ acme.sh --issue \
   -d example.org
 ```
 
+The real smoke test suite should include one `dns-01` issuance and one `http-01` issuance rather than treating one of the two challenge types as optional.
+
 The exact smoke-test command may vary by challenge method, but the implementation should support the normal directory-URL based client model.
 
 ## 4. What To Validate
@@ -61,7 +69,7 @@ For both `certbot` and `acme.sh`, validate at least:
 
 - directory discovery
 - nonce handling
-- account creation
+- account creation with External Account Binding
 - order creation
 - challenge acknowledgement
 - finalize flow
@@ -69,6 +77,7 @@ For both `certbot` and `acme.sh`, validate at least:
 
 Also validate:
 
+- across the named-client smoke-test set, both `http-01` and `dns-01` challenge paths
 - failures are reported in ACME-compatible ways
 - unsupported features are not advertised
 - wildcard behavior matches the documented supported challenge set

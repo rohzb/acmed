@@ -9,17 +9,28 @@ This directory contains the design and implementation guidance for `acmed`, a sm
 
 Use this README as the index for the document set.
 
-## Documents
+## Doc Map
 
-- Project overview, constraints, and success criteria: [`docs/overview.md`](docs/overview.md)
-- System shape, boundaries, and package layout: [`docs/architecture.md`](docs/architecture.md)
-- Lifecycle, schema, storage, configuration, and broker API shape: [`docs/data-model.md`](docs/data-model.md)
-- Security defaults and runtime expectations: [`docs/security-operations.md`](docs/security-operations.md)
-- Delivery order, stop rules, and MVP completion criteria: [`docs/delivery-plan.md`](docs/delivery-plan.md)
-- Execution checklist: [`docs/implementation-checklist.md`](docs/implementation-checklist.md)
-- Code generation and implementation conventions: [`docs/implementation-guide.md`](docs/implementation-guide.md)
-- ACME-visible protocol behavior: [`docs/acme-api-reference.md`](docs/acme-api-reference.md)
-- ACME client smoke tests and compatibility notes: [`docs/acme-compatibility.md`](docs/acme-compatibility.md)
+- [`docs/overview.md`](docs/overview.md): project intent, MVP boundaries, success criteria
+- [`docs/architecture.md`](docs/architecture.md): runtime shape, boundaries, package layout
+- [`docs/data-model.md`](docs/data-model.md): lifecycle, runtime records, persistence, storage model
+- [`docs/policy-config.md`](docs/policy-config.md): configuration shape, policy syntax, policy matching
+- [`docs/broker-api-reference.md`](docs/broker-api-reference.md): broker-native HTTP contract
+- [`docs/security-operations.md`](docs/security-operations.md): security defaults, abuse controls, operational posture
+- [`docs/delivery-plan.md`](docs/delivery-plan.md): delivery order, milestone boundaries, stop rules
+- [`docs/implementation-checklist.md`](docs/implementation-checklist.md): shortest execution checklist
+- [`docs/implementation-guide.md`](docs/implementation-guide.md): code-generation and code-structure guidance
+- [`docs/acme-api-reference.md`](docs/acme-api-reference.md): normative ACME-visible protocol contract
+- [`docs/acme-compatibility.md`](docs/acme-compatibility.md): client-facing interoperability checks and smoke-test notes
+
+## Reading Paths
+
+Use the shortest path for the task at hand:
+
+- orientation: [`docs/overview.md`](docs/overview.md) -> [`docs/architecture.md`](docs/architecture.md)
+- broker implementation: [`docs/data-model.md`](docs/data-model.md) -> [`docs/policy-config.md`](docs/policy-config.md) -> [`docs/broker-api-reference.md`](docs/broker-api-reference.md) -> [`docs/security-operations.md`](docs/security-operations.md) -> [`docs/delivery-plan.md`](docs/delivery-plan.md) -> [`docs/implementation-checklist.md`](docs/implementation-checklist.md)
+- code generation or initial implementation: [`docs/implementation-guide.md`](docs/implementation-guide.md) plus the broker path above
+- ACME implementation: [`docs/acme-api-reference.md`](docs/acme-api-reference.md) first, then [`docs/acme-compatibility.md`](docs/acme-compatibility.md)
 
 ## Implementation Readiness
 
@@ -28,23 +39,19 @@ The document set is intended to be implementation-ready for the broker-first MVP
 Before writing code, confirm these document-level decisions:
 
 - Build in the delivery order from [`docs/delivery-plan.md`](docs/delivery-plan.md); do not start with ACME-first scaffolding.
-- Treat [`docs/data-model.md`](docs/data-model.md) as the source of truth for request normalization, lifecycle, storage, deduplication, and broker API shape.
+- Treat [`docs/data-model.md`](docs/data-model.md) as the source of truth for lifecycle, runtime records, persistence, storage, and deduplication.
+- Treat [`docs/policy-config.md`](docs/policy-config.md) as the source of truth for configuration and policy matching behavior.
+- Treat [`docs/broker-api-reference.md`](docs/broker-api-reference.md) as the source of truth for the broker-native HTTP contract.
 - Treat [`docs/security-operations.md`](docs/security-operations.md) as the source of truth for authentication posture, secret handling, subprocess safety, and runtime guardrails.
 - Treat [`docs/acme-api-reference.md`](docs/acme-api-reference.md) as the source of truth for every ACME-visible endpoint, status, and error contract.
+- Treat [`docs/acme-compatibility.md`](docs/acme-compatibility.md) as validation guidance, not as the normative ACME contract.
 
 Questions an implementer should be able to answer from the docs:
 
 - Which order states exist, who moves them, and when retries or expiration are allowed.
 - How requester identity, policy selection, deduplication, and artifact visibility work for the broker API.
-- Which ACME features are truly in scope for the MVP and which ones must be rejected explicitly.
+- Which ACME features are truly in scope for the MVP, including the required `http-01`, `dns-01`, and External Account Binding behavior.
 - Which tests are required before claiming broker-native or ACME compatibility.
-
-Suggested use:
-
-1. Start with [`docs/overview.md`](docs/overview.md).
-2. Use [`docs/architecture.md`](docs/architecture.md), [`docs/data-model.md`](docs/data-model.md), and [`docs/security-operations.md`](docs/security-operations.md) for the system contract.
-3. Use [`docs/delivery-plan.md`](docs/delivery-plan.md) and [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for execution.
-4. Use the ACME documents when implementing or validating the ACME adapter.
 
 Suggested implementation start order:
 
