@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for system shape, component boundaries, and package layout.
 
+Owns: system shape, component boundaries, broker-versus-ACME separation, and package layout.
+
 ## 1. Objective
 
 Build a certificate issuance service that centralizes policy decisions while staying small, fast, and understandable.
@@ -178,4 +180,4 @@ Main companion documents:
 - [`policy-config.md`](./policy-config.md): configuration and policy matching
 - [`broker-api-reference.md`](./broker-api-reference.md): broker-native HTTP behavior
 - [`security-operations.md`](./security-operations.md): security defaults and runtime posture
-- [`delivery-plan.md`](./delivery-plan.md): sequencing and milestone boundaries
+- [`implementation-plan.md`](./implementation-plan.md): sequencing, iteration scope, and MVP completion

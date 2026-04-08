@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for broker lifecycle, runtime records, persistence, and storage.
 
+Owns: lifecycle states, persistence shape, worker claims, retry and expiration behavior, and artifact layout.
+
 ## 1. Order Lifecycle
 
 Required states:
@@ -224,7 +226,7 @@ If the ACME adapter is enabled later, add only the persistence needed to support
 - `acme_challenges`
 - nonce storage only if the chosen nonce strategy requires durable state
 
-Do not add ACME-specific persistence in the first broker-native milestone unless the implementation has reached the ACME iteration described in [`delivery-plan.md`](./delivery-plan.md).
+Do not add ACME-specific persistence in the first broker-native milestone unless the implementation has reached the ACME iteration described in [`implementation-plan.md`](./implementation-plan.md).
 
 ### 3.2 Minimal ACME Persistence Model
 

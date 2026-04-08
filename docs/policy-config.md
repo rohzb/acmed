@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for YAML configuration, policy definitions, and policy matching behavior.
 
+Owns: configuration schema, identity and admin config, operational defaults, policy syntax, and policy-selection rules.
+
 ## 1. Configuration Shape
 
 Configuration examples should stay aligned with the documented delivery and test strategy:

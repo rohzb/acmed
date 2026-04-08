@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for ACME-visible behavior. If it conflicts with a planning note or smoke-test example, prefer this file.
 
+Owns: normative ACME-visible behavior, endpoint contract, object shapes, and ACME error posture.
+
 ## 1. Purpose
 
 Use this document as the ACME protocol reference for the `acmed` adapter.

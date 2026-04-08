@@ -6,6 +6,8 @@
 
 Use this file for practical client validation notes, not as the normative ACME contract. For client-visible protocol rules, use [`acme-api-reference.md`](./acme-api-reference.md).
 
+Owns: client smoke-test notes, interoperability reminders, and practical compatibility validation guidance.
+
 ## 1. Purpose
 
 Use this document for:

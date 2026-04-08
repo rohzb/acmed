@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for project purpose, core constraints, and MVP intent.
 
+Owns: project purpose, MVP boundaries, core constraints, and success criteria.
+
 ## 1. Purpose
 
 The project goal is to build a central certificate brokerage service for internal infrastructure. The service accepts certificate requests, evaluates whether the requester is allowed to obtain the requested names, optionally performs challenge validation, delegates issuance to pluggable backends, and stores the resulting artifacts and audit trail.

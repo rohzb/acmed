@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for security defaults, operational expectations, and failure-handling posture.
 
+Owns: security baseline, startup behavior, abuse controls, runtime posture, and failure-handling expectations.
+
 ## 1. Security Baseline
 
 Design for at least these threats:

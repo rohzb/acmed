@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> Use this document for code generation and implementation conventions. Use [`delivery-plan.md`](./delivery-plan.md) for sequencing and MVP scope decisions.
+> Use this document for code structure and generation conventions. Use [`implementation-plan.md`](./implementation-plan.md) for sequencing and iteration scope.
 
 ## 1. Goal
 
@@ -10,23 +10,21 @@ Use this document as the implementation instruction set for generating the initi
 
 Keep this document focused on how to implement the code. The authoritative lifecycle, storage, configuration, API, security, and delivery contracts live in the companion documents it links to.
 
+Owns: code-shape guidance, package responsibilities, validation emphasis, test expectations, and generation constraints.
+
 Companion documents:
 
-- use [`implementation-checklist.md`](./implementation-checklist.md) for the shortest execution-focused view
-- use [`delivery-plan.md`](./delivery-plan.md) for iteration order, scope boundaries, and MVP done criteria
+- use [`implementation-plan.md`](./implementation-plan.md) for iteration order, scope boundaries, checklists, and MVP done criteria
 - use [`acme-compatibility.md`](./acme-compatibility.md) for client smoke-test examples and compatibility notes
 
 ## 2. First-slice Implementation Decisions
 
-Use these decisions as fixed inputs for the first implementation pass:
+Use these as cross-document implementation anchors for the first pass:
 
-- implement API-token authentication before optional mTLS support
-- treat requester-facing broker order reads as `404` for both unknown and not-owned orders
-- return `201` only for truly new broker orders and `200` when create-order deduplication reuses an existing active order
-- treat `csr_pem` presence as the request for client-provided CSR mode and its absence as the request for service-generated CSR mode
-- omit requester-facing artifact download endpoints until a concrete download contract is documented
-- let worker claim acquisition target only `pending` and recoverable `authorized` orders
-- use the documented defaults for request size, SAN count, retry count, order TTL, and claim TTL from [`policy-config.md`](./policy-config.md)
+- use [`policy-config.md`](./policy-config.md) for request limits, retry bounds, TTL defaults, and identity configuration
+- use [`broker-api-reference.md`](./broker-api-reference.md) for create-order status behavior, requester visibility rules, and admin access posture
+- use [`data-model.md`](./data-model.md) for lifecycle states, worker reclaim eligibility, and artifact layout
+- use [`security-operations.md`](./security-operations.md) for startup fail-closed rules and abuse controls
 
 ## 3. Implementation Priorities
 

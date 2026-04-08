@@ -6,6 +6,8 @@
 
 Use this document as the source of truth for the broker-native API contract.
 
+Owns: broker-native request and response behavior, status codes, visibility rules, and admin list posture.
+
 ## 1. Scope
 
 For the broker-first milestone, keep the broker API contract small and explicit.
