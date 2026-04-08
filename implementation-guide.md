@@ -8,6 +8,10 @@
 
 Use this document as the implementation instruction set for generating the initial `acmed` codebase. It turns the project brief and architecture into an implementation order, package plan, configuration contract, testing plan, and acceptance checklist.
 
+For a shorter execution-focused version, use [`implementation-checklist.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-checklist.md).
+
+For ACME client smoke-test examples and compatibility notes, use [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md).
+
 ## 2. Implementation Priorities
 
 The code generation effort should optimize for:
@@ -177,6 +181,10 @@ Split these files only after they become materially harder to read or maintain.
 
 ## 6. Runtime Contracts
 
+For order lifecycle, schema shape, storage layout, and configuration examples, see [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md).
+
+For security baseline, runtime topology, startup behavior, and failure handling, see [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
+
 ### Order creation service
 
 Responsibilities:
@@ -231,6 +239,8 @@ Security responsibilities:
 - support cleanup or retention rules for sensitive artifacts
 
 ## 7. Configuration Requirements
+
+The canonical configuration example lives in [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md).
 
 The initial config model should include:
 
@@ -302,6 +312,8 @@ Documentation-oriented checks should also verify:
 - public classes and methods include docstrings
 
 Prefer realistic service-level tests over excessive mocking.
+
+Operational and security-oriented test expectations should stay aligned with [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
 
 ## 9. Documentation Requirements
 

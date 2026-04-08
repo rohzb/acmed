@@ -542,32 +542,9 @@ Typical compatible client flow:
 10. `POST-as-GET` order until it becomes `valid`
 11. `POST-as-GET` certificate resource
 
-## 11. Client Smoke-Test Examples
+See [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md) for client smoke-test examples and compatibility-oriented validation notes.
 
-These examples are illustrative smoke-test targets, not production runbooks.
-
-### certbot example
-
-```bash
-certbot certonly \
-  --server https://<host>/acme/directory \
-  --manual \
-  --preferred-challenges dns \
-  -d example.org
-```
-
-### acme.sh example
-
-```bash
-acme.sh --issue \
-  --server https://<host>/acme/directory \
-  --dns \
-  -d example.org
-```
-
-The exact smoke-test command may vary by challenge method, but the implementation should support the normal directory-URL based client model.
-
-## 12. Compatibility Boundaries
+## 11. Compatibility Boundaries
 
 The adapter should be described as compatible with common clients only for the features it truly supports.
 
@@ -579,7 +556,7 @@ That means:
 - do not skip nonce, JWS, or POST-as-GET behavior for convenience
 - do not claim compatibility with named clients without testing against those named clients
 
-## 13. References
+## 12. References
 
 - RFC 8555: https://datatracker.ietf.org/doc/html/rfc8555
 - Certbot usage docs: https://eff-certbot.readthedocs.io/en/latest/using.html
