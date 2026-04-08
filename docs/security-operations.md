@@ -135,3 +135,9 @@ Worker-claim expectations:
 | Token or credential leakage | unauthorized issuance or inspection | require TLS, redaction, hashed token storage, and secret minimization |
 | Command injection | arbitrary command execution | validate inputs, use explicit argv, avoid shell execution, sanitize environment |
 | Audit oversharing | secrets appear in logs or API output | redact by default and restrict audit access |
+
+## 12. Related Documents
+
+- [`policy-config.md`](./policy-config.md): authorization rules, policy syntax, and matcher behavior
+- [`data-model.md`](./data-model.md): worker-claim persistence, artifact layout, and admin-surface boundaries
+- [`broker-api-reference.md`](./broker-api-reference.md): requester-facing and admin-facing broker HTTP behavior

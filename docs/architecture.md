@@ -27,7 +27,7 @@ In scope:
 - pluggable authorizers, challenge providers, and issuers
 - persistent runtime state
 - auditability
-- ACME-compatible adapter added after the broker-native milestones, enabled only when needed at runtime, and still part of the documented MVP scope
+- ACME-compatible adapter enabled only when needed at runtime and still part of the documented MVP scope
 
 Out of scope for v1:
 
@@ -117,6 +117,8 @@ src/acmed/
 
 Split files only after they become materially too large.
 
+For per-file responsibilities and implementation-oriented rules, use [`implementation-guide.md`](./implementation-guide.md).
+
 `main.py` should act as the broker-first runtime entrypoint:
 
 - load configuration
@@ -168,4 +170,12 @@ The ACME adapter must preserve ACME-visible behavior, but the broker core must s
 
 ## 7. Related Documents
 
-For topic ownership and navigation, use [`../README.md`](../README.md). The main companion documents are [`data-model.md`](./data-model.md), [`policy-config.md`](./policy-config.md), [`broker-api-reference.md`](./broker-api-reference.md), [`security-operations.md`](./security-operations.md), and [`delivery-plan.md`](./delivery-plan.md).
+For topic ownership and navigation, use [`../README.md`](../README.md).
+
+Main companion documents:
+
+- [`data-model.md`](./data-model.md): lifecycle, persistence, and storage
+- [`policy-config.md`](./policy-config.md): configuration and policy matching
+- [`broker-api-reference.md`](./broker-api-reference.md): broker-native HTTP behavior
+- [`security-operations.md`](./security-operations.md): security defaults and runtime posture
+- [`delivery-plan.md`](./delivery-plan.md): sequencing and milestone boundaries

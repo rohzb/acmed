@@ -4,7 +4,7 @@
 > **TL;DR**
 > This document collects practical compatibility notes and smoke-test examples for `certbot` and `acme.sh`. The protocol contract itself lives in [`acme-api-reference.md`](./acme-api-reference.md).
 
-This document is practical, not normative. Use [`acme-api-reference.md`](./acme-api-reference.md) for the actual ACME contract.
+Use this file for practical client validation notes, not as the normative ACME contract. For client-visible protocol rules, use [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 1. Purpose
 
@@ -36,7 +36,7 @@ Pebble setup assumption:
 
 These examples are illustrative smoke-test targets, not production runbooks.
 
-They intentionally omit exact External Account Binding command-line flags because client support and flag names can vary by tool and version. The smoke-test workflow must still exercise EAB even when the short examples below do not show the full enrollment command.
+They intentionally omit exact External Account Binding command-line flags because client support and flag names can vary by tool and version. The smoke-test workflow must still exercise EAB even when the short examples below do not show the full enrollment command, and the examples are sketches rather than canonical commands for every supported client version.
 
 ### certbot example
 

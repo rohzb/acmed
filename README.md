@@ -34,38 +34,28 @@ Use the shortest path for the task at hand:
 
 ## Implementation Readiness
 
-The document set is intended to be implementation-ready for the broker-first MVP and the documented ACME MVP slice.
+The document set is stable for implementation of the broker-first MVP and the documented ACME MVP slice.
 
-Before writing code, confirm these document-level decisions:
+Before writing code:
 
-- Build in the delivery order from [`docs/delivery-plan.md`](docs/delivery-plan.md); do not start with ACME-first scaffolding.
-- Treat [`docs/data-model.md`](docs/data-model.md) as the source of truth for lifecycle, runtime records, persistence, storage, and deduplication.
-- Treat [`docs/policy-config.md`](docs/policy-config.md) as the source of truth for configuration and policy matching behavior.
-- Treat [`docs/broker-api-reference.md`](docs/broker-api-reference.md) as the source of truth for the broker-native HTTP contract.
-- Treat [`docs/security-operations.md`](docs/security-operations.md) as the source of truth for authentication posture, secret handling, subprocess safety, and runtime guardrails.
-- Treat [`docs/acme-api-reference.md`](docs/acme-api-reference.md) as the source of truth for every ACME-visible endpoint, status, and error contract.
-- Treat [`docs/acme-compatibility.md`](docs/acme-compatibility.md) as validation guidance, not as the normative ACME contract.
+- follow the delivery order from [`docs/delivery-plan.md`](docs/delivery-plan.md); do not start with ACME-first scaffolding
+- use the file named in the `Doc Map` as the authority for that topic
+- prefer explicit protocol rules in [`docs/acme-api-reference.md`](docs/acme-api-reference.md) over examples or smoke-test notes
 
-Questions an implementer should be able to answer from the docs:
+The docs should answer:
 
-- Which order states exist, who moves them, and when retries or expiration are allowed.
-- How requester identity, policy selection, deduplication, and artifact visibility work for the broker API.
-- Which ACME features are truly in scope for the MVP, including the required `http-01`, `dns-01`, and External Account Binding behavior.
-- Which tests are required before claiming broker-native or ACME compatibility.
+- which order states exist, who moves them, and when retries or expiration are allowed
+- how requester identity, policy selection, deduplication, and artifact visibility work for the broker API
+- which ACME features are in scope for the MVP, including `http-01`, `dns-01`, and External Account Binding
+- which tests are required before claiming broker-native or ACME compatibility
 
-Suggested implementation start order:
+Suggested start order:
 
 1. Implement Iteration 0 and Iteration 1 from [`docs/delivery-plan.md`](docs/delivery-plan.md) before adding real issuer subprocesses or ACME endpoints.
 2. Keep the first running slice limited to broker-native happy-path behavior plus the security and storage rules needed to make that slice honest.
 3. Add ACME persistence and endpoint work only when the broker-native flow is already passing its own tests.
 
-If two documents appear to disagree:
-
-1. Prefer the document listed above for that topic.
-2. Prefer delivery sequencing from [`docs/delivery-plan.md`](docs/delivery-plan.md) over broader checklists or examples.
-3. Prefer explicit protocol rules in [`docs/acme-api-reference.md`](docs/acme-api-reference.md) over implied behavior in other docs.
-
-If a coding task still feels ambiguous after reading the docs:
+If a detail still feels ambiguous after reading the docs:
 
 1. Prefer the smallest fail-closed interpretation that preserves the documented MVP.
 2. Add the missing rule to the most specific document before expanding implementation scope.

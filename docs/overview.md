@@ -10,7 +10,7 @@ Use this document as the source of truth for project purpose, core constraints, 
 
 The project goal is to build a central certificate brokerage service for internal infrastructure. The service accepts certificate requests, evaluates whether the requester is allowed to obtain the requested names, optionally performs challenge validation, delegates issuance to pluggable backends, and stores the resulting artifacts and audit trail.
 
-`acmed` is not ACME-first. ACME support is an adapter layer, not the core domain model. It is still part of the documented MVP scope, but it should be added only after the broker-native flow is solid.
+`acmed` is not ACME-first. ACME support is an adapter layer, not the core domain model. It is still part of the documented MVP scope.
 
 ## 2. Core Constraints
 
@@ -30,7 +30,7 @@ The project goal is to build a central certificate brokerage service for interna
 - persistent runtime state
 - pluggable authorizers, challenge providers, and issuers
 - structured audit logging
-- ACME adapter for the documented supported feature set, delivered after the broker-native milestones rather than in the first implementation slice
+- ACME adapter for the documented supported feature set
 - automated testing with `pytest`
 - local ACME integration testing with Pebble
 - real-client ACME smoke tests with `certbot` and `acme.sh`

@@ -155,14 +155,14 @@ Implementation boundary:
 | `/acme/new-account` | `POST` | Create or look up account |
 | `/acme/account/<account_id>` | `POST-as-GET`, `POST` | Fetch or update account |
 | `/acme/account/<account_id>/orders` | `POST-as-GET` | List account orders |
-| `/acme/key-change` | `POST` | Roll account key if supported |
+| `/acme/key-change` | `POST` | Optional account key rollover endpoint |
 | `/acme/new-order` | `POST` | Create order |
 | `/acme/order/<order_id>` | `POST-as-GET` | Poll order state |
 | `/acme/authz/<authorization_id>` | `POST-as-GET` | Fetch authorization state |
 | `/acme/challenge/<challenge_id>` | `POST-as-GET`, `POST` | Fetch challenge or acknowledge readiness |
 | `/acme/order/<order_id>/finalize` | `POST` | Submit CSR and finalize |
 | `/acme/cert/<certificate_id>` | `POST-as-GET` | Download certificate |
-| `/acme/revoke-cert` | `POST` | Revoke certificate if implemented |
+| `/acme/revoke-cert` | `POST` | Optional certificate revocation endpoint |
 
 ## 6. Endpoint Details
 

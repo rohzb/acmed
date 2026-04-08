@@ -332,9 +332,12 @@ Recommended artifact layout rules:
 
 For the MVP, keep the admin API intentionally small.
 
-Recommended admin-only endpoints:
+Minimum documented admin endpoint:
 
 - `GET /api/v1/admin/orders`
+
+Possible later admin-only inspection endpoints:
+
 - `GET /api/v1/admin/orders/<order_id>`
 - `GET /api/v1/admin/audit-events/<order_id>`
 
@@ -345,6 +348,8 @@ Admin endpoints should be limited to:
 - operational visibility needed for support and troubleshooting
 
 Do not add write-heavy or lifecycle-mutating admin endpoints in the broker-first milestone unless a later document explicitly requires them.
+
+For concrete broker and admin request or response behavior, use [`broker-api-reference.md`](./broker-api-reference.md).
 
 ### Health surface
 

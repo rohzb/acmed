@@ -6,6 +6,8 @@
 
 Use [`delivery-plan.md`](./delivery-plan.md) to decide what to build first and what to delay to later iterations.
 
+Use [`policy-config.md`](./policy-config.md) for matcher syntax and configuration details, and use [`broker-api-reference.md`](./broker-api-reference.md) for broker HTTP contract details.
+
 This file is intentionally terse. Use the other documents for the underlying system rules and contracts.
 
 ## 1. Iteration 0: Bootstrapping

@@ -123,3 +123,9 @@ Recommended rules:
 - return authorization failures without revealing internal policy names, rule structure, or unrelated allowed domains
 - return validation failures with field-level detail only for client-correctable input errors
 - reserve internal execution detail for admin and audit views rather than requester-facing responses
+
+## 7. Related Documents
+
+For lifecycle, persistence, artifact layout, and admin-surface boundaries, use [`data-model.md`](./data-model.md).
+
+For configuration and policy-matching behavior, use [`policy-config.md`](./policy-config.md).

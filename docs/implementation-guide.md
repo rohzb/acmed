@@ -10,11 +10,11 @@ Use this document as the implementation instruction set for generating the initi
 
 Keep this document focused on how to implement the code. The authoritative lifecycle, storage, configuration, API, security, and delivery contracts live in the companion documents it links to.
 
-For a shorter execution-focused version, use [`implementation-checklist.md`](./implementation-checklist.md).
+Companion documents:
 
-For ACME client smoke-test examples and compatibility notes, use [`acme-compatibility.md`](./acme-compatibility.md).
-
-For delivery order, iteration boundaries, testing stages, and MVP done criteria, use [`delivery-plan.md`](./delivery-plan.md).
+- use [`implementation-checklist.md`](./implementation-checklist.md) for the shortest execution-focused view
+- use [`delivery-plan.md`](./delivery-plan.md) for iteration order, scope boundaries, and MVP done criteria
+- use [`acme-compatibility.md`](./acme-compatibility.md) for client smoke-test examples and compatibility notes
 
 ## 2. Implementation Priorities
 
@@ -76,13 +76,12 @@ Entrypoint responsibility:
 
 ## 5. Runtime Contracts
 
-For order lifecycle, schema shape, and storage layout, see [`data-model.md`](./data-model.md).
+Authoritative companion contracts:
 
-For configuration examples and policy matching rules, see [`policy-config.md`](./policy-config.md).
-
-For the broker-native HTTP contract, see [`broker-api-reference.md`](./broker-api-reference.md).
-
-For security baseline, runtime topology, startup behavior, and failure handling, see [`security-operations.md`](./security-operations.md).
+- [`data-model.md`](./data-model.md): order lifecycle, schema shape, and storage layout
+- [`policy-config.md`](./policy-config.md): configuration examples and policy matching rules
+- [`broker-api-reference.md`](./broker-api-reference.md): broker-native HTTP contract
+- [`security-operations.md`](./security-operations.md): security baseline, runtime topology, startup behavior, and failure handling
 
 ### Order creation service
 

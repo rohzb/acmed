@@ -107,13 +107,13 @@ Required fields:
 - `syntax`: declares how `value` must be interpreted
 - `value`: the pattern or identifier in the syntax-specific format
 
-Supported `syntax` values:
+Recognized `syntax` values:
 
 - `exact`
 - `suffix`
 - `regex`
 
-Broker-first MVP support:
+Broker-first MVP runtime support:
 
 - `exact` and `suffix` are supported
 - `regex` must be rejected unless regex policy mode is explicitly enabled
@@ -160,6 +160,23 @@ Recommended use:
 - treat `regex` as an opt-in expert feature for later slices rather than a default policy-authoring tool
 - keep mixed-syntax policies rare unless they are materially simpler than multiple explicit policies
 
+Example mixed-syntax policy:
+
+```yaml
+policies:
+  - name: lab-general
+    requester_match:
+      authorizers:
+        - subnet-lab
+    allowed_domains:
+      - syntax: exact
+        value: gateway.lab.example.org
+      - syntax: suffix
+        value: .apps.lab.example.org
+    issuer: mock
+    challenge: no-challenge
+```
+
 ## 3. Policy Selection
 
 ### 3.1 Request Normalization And Identity
@@ -190,7 +207,7 @@ Policy resolution rules for the broker-first MVP:
 
 Identifier-to-policy matching rules:
 
-- treat exact names, wildcard request identifiers, suffix entries, and regex entries as distinct forms during matching
+- treat exact names, wildcard request identifiers, suffix entries, and, when enabled, regex entries as distinct forms during matching
 - match request identifiers against policy entries only after request normalization
 - use the declared `syntax` field rather than inferring matcher behavior from the `value`
 - in the broker-first MVP, treat the `suffix` form as the explicit policy form that allows wildcard request identifiers under that zone
@@ -220,3 +237,9 @@ Specificity rules for the broker-first MVP:
 - prefer policies with narrower requester constraints over broader requester constraints
 - prefer policies that enumerate fewer allowed domains when both otherwise match the same request
 - if two matching policies remain tied after those checks, fail closed instead of relying on file order
+
+## 4. Related Documents
+
+For lifecycle, persistence, and storage behavior, use [`data-model.md`](./data-model.md).
+
+For broker-native HTTP behavior, use [`broker-api-reference.md`](./broker-api-reference.md).
