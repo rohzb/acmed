@@ -76,6 +76,14 @@ Idempotency relationship:
 - do not expose `dedupe_key` as a client-controlled field
 - do not require `idempotency_key` for the broker-first milestone
 
+Normalization and deduplication rules for the broker-first MVP:
+
+- normalize all DNS names before policy matching, deduplication, persistence, and CSR comparison
+- store normalized names in lowercase ASCII A-label form as the canonical persisted representation across the codebase
+- sort the normalized `dns_names` set before computing `dedupe_key` so request ordering does not change identity
+- treat duplicate create requests with the same active `dedupe_key` as the same logical order rather than as a second issuance request
+- if `idempotency_key` is present and conflicts with the payload previously seen for that requester, return `409 Conflict` instead of silently reusing an unrelated order
+
 Do not turn these fields into large plugin-style registries or open-ended free-form values in the broker-first milestone unless a later iteration proves the need.
 
 ### Authorization decision
@@ -151,6 +159,13 @@ Broker-first expiration rules:
 - move `pending` or `authorized` orders to `expired` when `expires_at` passes before successful issuance
 - do not retry or issue expired orders
 
+Retry classification rules for the broker-first MVP:
+
+- classify policy denial, malformed requests, configuration errors, and CSR mismatch as non-retryable
+- classify transient SQLite lock contention, bounded DNS propagation waits, and bounded external issuer timeouts as retryable only when the same attempt may succeed without changing the order payload
+- persist retry classification in audit metadata so operators can explain why a failed order was or was not re-queued
+- do not retry after any failure that could indicate unsafe or ambiguous authorization state
+
 ## 3. Schema Shape
 
 For the MVP, prefer a small schema with a few well-chosen tables:
@@ -184,6 +199,14 @@ Worker-claim rules:
 - a restarted or replacement worker may reclaim an order only after the prior claim has expired or been explicitly cleared
 - successful completion or terminal failure should clear the active claim fields
 - claim duration should be bounded so stuck workers do not block recovery forever
+
+Recommended claim algorithm for the broker-first MVP:
+
+- select candidate orders from eligible non-terminal states with expired-or-empty claim fields
+- claim one order with a short SQLite transaction that updates both lifecycle state and claim fields together
+- treat `claim_expires_at` as a lease, not as proof that the previous worker stopped cleanly
+- refresh or clear the claim only from the worker that currently owns `claimed_by`
+- prefer small worker concurrency and frequent polling over long claim durations
 
 Do not introduce a separate queue or lease-management subsystem for the broker-first milestone.
 
@@ -310,6 +333,14 @@ Recommended per-order files:
 - `issuer-output.log`
 - `challenge-output.log`
 
+Recommended artifact layout rules:
+
+- store each order under `artifacts_root/<order_id>/`
+- create the order directory before invoking any issuer or challenge subprocesses
+- write sensitive files such as `private.key` with owner-only permissions
+- write issuer and challenge logs into the order directory so audit references can point at stable relative paths
+- treat artifact filenames as part of the documented operator interface and avoid renaming them without updating the docs
+
 ### Admin surface
 
 For the MVP, keep the admin API intentionally small.
@@ -415,6 +446,36 @@ When the implementation reaches the ACME iteration, add a second example or envi
 
 For the broker-first milestone, keep the broker API contract small and explicit.
 
+### Request normalization and policy selection
+
+Before persisting a broker-native order:
+
+- authenticate the requester and derive one stable `requester_id`
+- normalize all DNS names before policy evaluation
+- reject empty identifier sets, malformed names, duplicate names, or a `common_name` that is not present in `dns_names`
+- resolve exactly one effective policy for the request
+
+Requester identity rules for the broker-first MVP:
+
+- derive `requester_id` from the authenticated credential rather than from client-supplied request fields
+- when API tokens are used, bind `requester_id` to the token's configured subject or principal name
+- when mTLS is used, bind `requester_id` to the verified client certificate identity after any configured mapping step
+- never allow the requester to override `requester_id` in the JSON payload
+
+Policy resolution rules for the broker-first MVP:
+
+- if no policy matches the authenticated requester and requested identifiers, reject the request
+- if more than one policy matches but all selected runtime choices are identical, choose the most specific policy and record the selected policy name in audit metadata
+- if more than one policy matches and they disagree on issuer, challenge type, or key/CSR mode, fail closed and require configuration cleanup instead of guessing
+- if the client supplies `issuer_name`, treat it as a constraint that must still be allowed by the selected policy rather than as an unrestricted override
+
+Specificity rules for the broker-first MVP:
+
+- prefer exact identifier matches over broader domain patterns
+- prefer policies with narrower requester constraints over broader requester constraints
+- prefer policies that enumerate fewer allowed domains when both otherwise match the same request
+- if two matching policies remain tied after those checks, fail closed instead of relying on file order
+
 ### Create order request
 
 `POST /api/v1/orders` should accept only client-supplied fields.
@@ -456,6 +517,12 @@ Recommended response fields:
 - `issuer_name`
 - `created_at`
 - `expires_at`
+
+Duplicate-create handling:
+
+- if the request resolves to an existing active order for the same `dedupe_key`, return `200 OK` with the existing order view rather than creating a second active order
+- if an exact idempotency replay is detected, return the same logical result as the original create request
+- if the dedupe or idempotency check collides with a semantically different request, return `409 Conflict`
 
 ### Read order response
 
@@ -509,3 +576,14 @@ Admin list rules:
 - default ordering should be newest first by `created_at`
 - include `requester_id` in the admin list view
 - keep the first milestone simple: omit pagination, filtering, and sorting controls unless a real slice requires them
+
+### Broker-native API error posture
+
+For the broker-first MVP, keep requester-facing API errors compact and fail closed.
+
+Recommended rules:
+
+- return authentication failures without exposing whether a requested identifier would otherwise have matched policy
+- return authorization failures without revealing internal policy names, rule structure, or unrelated allowed domains
+- return validation failures with field-level detail only for client-correctable input errors
+- reserve internal execution detail for admin and audit views rather than requester-facing responses

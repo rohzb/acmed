@@ -77,6 +77,13 @@ Except where RFC 8555 says otherwise:
 - the server must validate the JWS `url` field
 - the server must require a valid nonce on signed requests
 
+Request handling rules for the MVP:
+
+- every successful signed ACME response should include a fresh `Replay-Nonce`
+- POST-as-GET requests should carry an empty payload rather than a semantic request body
+- reject unsigned resource fetches even when the resource URL is otherwise guessable
+- reject requests addressed to a different account, order, authorization, challenge, or certificate resource than the one identified by the JWS target
+
 ### 4.4 Identifier support profile
 
 The MVP ACME adapter should explicitly support:
@@ -98,8 +105,14 @@ DNS normalization rules:
 
 - normalize DNS identifiers to lowercase before comparison or deduplication
 - normalize equivalent representations consistently before policy checks and CSR matching
-- handle internationalized names consistently, using one documented IDNA strategy throughout the implementation
+- handle internationalized names consistently by persisting and comparing identifiers in lowercase ASCII A-label form throughout the implementation
 - reject malformed names early rather than letting downstream validation interpret them differently
+
+Canonical identifier rules for the MVP:
+
+- compare ACME identifiers, broker policy inputs, and CSR SANs using the same normalized representation
+- store the normalized value as the canonical persisted identifier
+- preserve wildcard intent explicitly instead of inferring it later from a stripped `*.` prefix
 
 ### 4.5 ACME signing rules
 
@@ -283,6 +296,7 @@ Validation rules:
 - reject unsupported identifier types explicitly
 - reject wildcard identifiers unless the server fully supports wildcard issuance through `dns-01`
 - reject malformed, duplicate, or empty identifier sets
+- reject orders that request identifiers outside the server's documented policy domain, even if the JWS is otherwise valid
 
 Expected response:
 
@@ -325,6 +339,14 @@ Expected status progression:
 - `valid`
 - `invalid`
 
+Broker-to-ACME status mapping rules:
+
+- ACME `pending` means at least one authorization or challenge is still incomplete
+- ACME `ready` means all required authorizations are valid and the order is waiting for `finalize`
+- ACME `processing` means finalize succeeded and issuer work is still underway
+- ACME `valid` means certificate retrieval is available
+- ACME `invalid` means the order can no longer succeed without creating a new order
+
 ### 6.5 Authorization endpoint
 
 - `POST-as-GET /acme/authz/<authorization_id>`
@@ -353,6 +375,12 @@ Expected statuses:
 - `deactivated`
 - `expired`
 - `revoked`
+
+Authorization mapping rules for the MVP:
+
+- mark an authorization `valid` only after the corresponding challenge path has completed successfully
+- mark an authorization `invalid` when challenge validation fails or the order becomes unrecoverable
+- do not expose broker-internal policy-evaluation steps as separate ACME authorization states
 
 ### 6.6 Challenge endpoint
 
@@ -391,6 +419,12 @@ Ownership rule:
 
 Do not advertise challenge types that are not actually implemented end to end.
 
+Challenge acknowledgment rules:
+
+- treat repeated acknowledgement of an already terminal challenge as idempotent when the resource owner is unchanged
+- reject acknowledgement of a challenge owned by a different account even if the token matches
+- return the updated challenge object after acknowledgement so the client can continue polling deterministically
+
 ### 6.7 Finalize endpoint
 
 - `POST /acme/order/<order_id>/finalize`
@@ -418,6 +452,7 @@ Expected response behavior:
 - return the updated order object
 - use `processing` when issuance is still underway
 - allow the client to poll the order resource until it becomes `valid` or `invalid`
+- once finalize accepts a CSR, do not allow the order identifiers to change
 
 ### 6.8 Certificate endpoint
 

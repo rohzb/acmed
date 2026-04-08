@@ -99,6 +99,13 @@ Security responsibilities:
 - reject oversized or obviously abusive requests early
 - avoid exposing internal policy details in user-facing error responses
 
+Implementation defaults for the broker-first MVP:
+
+- derive one stable requester identity before any policy lookup, dedupe check, or audit write
+- normalize DNS identifiers once near the API boundary and pass the normalized form through the rest of the broker core
+- resolve one effective policy or fail closed; do not rely on implicit first-match behavior
+- make duplicate-create handling explicit so equivalent requests return one logical active order
+
 ### Worker processor
 
 Responsibilities:
@@ -127,6 +134,14 @@ ACME compatibility responsibilities:
 
 - preserve the distinction between broker-native challenge execution and ACME client-driven challenge fulfillment
 - expose standard ACME status transitions through the adapter while keeping broker-internal orchestration simple
+
+Recommended worker processing order:
+
+1. refuse expired or invalidly claimed orders before invoking plugins
+2. evaluate broker authorization and record the decision
+3. execute broker-native challenge handling only when the selected policy requires it
+4. invoke the issuer only after authorization and challenge state are both satisfied
+5. write artifacts, audit the outcome, and clear or refresh the claim as part of the same final processing slice
 
 ### Artifact writer
 
@@ -158,7 +173,28 @@ When generating config models and validation logic:
 - reject plaintext secret placeholders in committed-style configuration examples
 - reject ACME configuration that advertises unsupported challenge types or required endpoints
 
-## 7. Avoid During Generation
+## 7. Minimum Test Contract
+
+The first generated code should make the required tests obvious rather than leaving coverage strategy implicit.
+
+Broker-first tests should cover at least:
+
+- config loading and fail-closed validation
+- DNS normalization and deduplication behavior
+- order state-machine legality
+- policy selection ambiguity and deny-by-default behavior
+- worker claim, recovery, and retry classification behavior
+- artifact permission handling for sensitive outputs
+
+ACME tests should cover at least:
+
+- nonce issuance and bad-nonce recovery behavior
+- account ownership enforcement for account, order, authorization, challenge, and certificate resources
+- POST-as-GET behavior and JWS `url` validation
+- order, authorization, and challenge status progression for the documented challenge set
+- finalize CSR matching and certificate retrieval behavior
+
+## 8. Avoid During Generation
 
 Do not:
 
