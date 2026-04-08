@@ -77,7 +77,7 @@ issuers:
 
 challenge_providers:
   - name: no-challenge
-    type: noop
+    type: no_challenge
 
 authorizers:
   - name: subnet-lab

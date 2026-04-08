@@ -239,6 +239,8 @@ Include:
 - nonce
 - account creation
 - External Account Binding for account creation
+- account resource fetch and update
+- account orders resource
 - order creation
 - order polling
 - authorization and challenge resources
@@ -252,6 +254,7 @@ Checklist:
 - [ ] Keep ACME behavior protocol-correct and broker-internal behavior separate.
 - [ ] Enforce identifier support rules, ownership checks, and DNS normalization.
 - [ ] Require External Account Binding for ACME account creation.
+- [ ] Implement the ACME account resource and account orders resource required by the support matrix.
 - [ ] Implement both `http-01` and `dns-01` challenge flows.
 - [ ] Advertise only the ACME features actually implemented.
 - [ ] Run ACME integration tests against Pebble.

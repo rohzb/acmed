@@ -3,7 +3,7 @@
 > [!TIP]
 > Start with [`docs/overview.md`](docs/overview.md) for the project overview.
 
-`acmed` is a small, policy-driven certificate broker with a broker-native API, durable runtime state, an asynchronous worker loop, and a runtime-optional ACME adapter that remains part of the documented MVP scope.
+`acmed` is a small, policy-driven certificate broker with a broker-native API, durable runtime state, an asynchronous worker loop, and a runtime-optional ACME-compatible adapter that remains part of the documented MVP scope.
 
 This README is the index for the document set.
 
@@ -15,7 +15,7 @@ This README is the index for the document set.
 - [`docs/data-model.md`](docs/data-model.md): order lifecycle, persistence, worker claims, artifact layout
 - [`docs/broker-api-reference.md`](docs/broker-api-reference.md): broker-native HTTP contract
 - [`docs/security-operations.md`](docs/security-operations.md): security baseline, startup behavior, abuse controls, runtime posture
-- [`docs/implementation-plan.md`](docs/implementation-plan.md): delivery order, iteration checklist, stop rules, MVP done criteria
+- [`docs/implementation-plan.md`](docs/implementation-plan.md): delivery order, iteration checklists, stop rules, MVP done criteria
 - [`docs/implementation-guide.md`](docs/implementation-guide.md): code-shape guidance, package responsibilities, testing expectations
 - [`docs/acme-api-reference.md`](docs/acme-api-reference.md): normative ACME-visible protocol contract
 - [`docs/acme-compatibility.md`](docs/acme-compatibility.md): ACME client smoke tests and interoperability notes

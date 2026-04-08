@@ -15,6 +15,7 @@ Owns: code-shape guidance, package responsibilities, validation emphasis, test e
 Companion documents:
 
 - use [`implementation-plan.md`](./implementation-plan.md) for iteration order, scope boundaries, checklists, and MVP done criteria
+- use [`acme-api-reference.md`](./acme-api-reference.md) for the normative ACME-visible contract
 - use [`acme-compatibility.md`](./acme-compatibility.md) for client smoke-test examples and compatibility notes
 
 ## 2. First-slice Implementation Decisions
@@ -44,8 +45,8 @@ For the MVP, prefer a modular monolith over a highly segmented architecture.
 
 | Package | Responsibility |
 |--------|-----------------|
-| `api.py` | Broker endpoints, health endpoints, and request validation |
-| `acme_api.py` | ACME translation layer and ACME-visible HTTP behavior |
+| `api.py` | Broker endpoints, admin and health endpoints, and broker request validation |
+| `acme_api.py` | ACME translation layer and ACME-visible HTTP behavior when the adapter is enabled |
 | `models.py` | Domain entities, request models, and state values |
 | `policy.py` | Policy resolution plus authorizer and challenge selection logic |
 | `auth.py` | Identity extraction, token checks, and mTLS mapping |
@@ -62,6 +63,7 @@ Split these files only after they become materially harder to read or maintain.
 Entrypoint responsibility:
 
 - `main.py` should load config, initialize storage, start the worker loop, and serve the HTTP application for the broker-first MVP
+- when ACME is enabled for the documented ACME slices, the same application should mount the ACME routes without reshaping the broker core
 
 ## 5. Design Rules for Generated Code
 
@@ -216,7 +218,7 @@ ACME tests should cover at least:
 
 - nonce issuance and bad-nonce recovery behavior
 - External Account Binding enforcement for account creation
-- account ownership enforcement for account, order, authorization, challenge, and certificate resources
+- account ownership enforcement for account, account orders, order, authorization, challenge, and certificate resources
 - POST-as-GET behavior and JWS `url` validation
 - order, authorization, and challenge status progression for both `http-01` and `dns-01`
 - finalize CSR matching and certificate retrieval behavior

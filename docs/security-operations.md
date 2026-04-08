@@ -160,7 +160,7 @@ Worker-claim expectations:
 | Policy misconfiguration | over-broad authorization | fail closed and surface config validation errors |
 | Artifact write failure | certificate not persisted | keep order failed, preserve issuer result metadata, emit audit event |
 | Restart during issuance | orphaned in-progress state | recover from persisted attempts and allow controlled retry |
-| Token or credential leakage | unauthorized issuance or inspection | require TLS, redaction, hashed token storage, and secret minimization |
+| Token or credential leakage | unauthorized issuance or inspection | require TLS, redaction, secret-env-backed token handling, and secret minimization |
 | Command injection | arbitrary command execution | validate inputs, use explicit argv, avoid shell execution, sanitize environment |
 | Audit oversharing | secrets appear in logs or API output | redact by default and restrict audit access |
 

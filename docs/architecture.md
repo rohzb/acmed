@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> `acmed` should be implemented as a modular monolith: broker core, worker loop, small plugin boundaries, and a runtime-optional ACME adapter around the outside.
+> `acmed` should be implemented as a modular monolith: broker core, worker loop, small plugin boundaries, and a runtime-optional ACME-compatible adapter around the outside.
 
 Use this document as the source of truth for system shape, component boundaries, and package layout.
 
@@ -128,6 +128,7 @@ For per-file responsibilities and implementation-oriented rules, use [`implement
 - start the worker loop
 - construct the HTTP application
 - expose the broker API, admin inspection endpoints, and health endpoints from one service process for the MVP
+- mount the ACME adapter routes in that same service process when ACME is enabled for the documented ACME slices
 
 Do not turn `main.py` into a framework-heavy bootstrap layer in the broker-first milestone.
 
