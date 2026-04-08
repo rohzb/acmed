@@ -32,7 +32,7 @@ Design for at least these threats:
 
 - fail closed on parse errors, missing references, or ambiguous matches
 - prefer exact-name or tightly scoped rules over broad wildcard grants
-- treat `"no challenge"` as a high-trust policy path that must be explicit and auditable
+- treat the `no-challenge` path as a high-trust policy path that must be explicit and auditable
 - restrict broker order access to the original requester or an administrator
 
 ## 4. Secret Handling

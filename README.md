@@ -5,7 +5,7 @@
 
 ## Overview
 
-This directory contains the design and implementation guidance for `acmed`, a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and an optional ACME-compatible adapter.
+This directory contains the design and implementation guidance for `acmed`, a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and a runtime-optional ACME-compatible adapter that remains part of the documented MVP scope.
 
 Use this README as the index for the document set.
 
@@ -26,14 +26,10 @@ Suggested use:
 1. Start with [`docs/overview.md`](docs/overview.md).
 2. Use [`docs/architecture.md`](docs/architecture.md), [`docs/data-model.md`](docs/data-model.md), and [`docs/security-operations.md`](docs/security-operations.md) for the system contract.
 3. Use [`docs/delivery-plan.md`](docs/delivery-plan.md) and [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for execution.
-4. Use the ACME documents only when working on the ACME adapter.
+4. Use the ACME documents when implementing or validating the ACME adapter.
 
 If two documents appear to disagree:
 
 1. Prefer the document listed above for that topic.
 2. Prefer delivery sequencing from [`docs/delivery-plan.md`](docs/delivery-plan.md) over broader checklists or examples.
 3. Prefer explicit protocol rules in [`docs/acme-api-reference.md`](docs/acme-api-reference.md) over implied behavior in other docs.
-
-## Purpose
-
-Use these documents to guide an incremental implementation that stays small, secure, testable, and truthful about what is supported at each stage.

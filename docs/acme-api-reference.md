@@ -25,11 +25,11 @@ The ACME adapter should be usable by typical ACME clients through the directory 
 
 The adapter should behave like a normal ACME server for the documented supported feature set.
 
-## 3. ACME v1 Support Matrix
+## 3. ACME Support Matrix
 
-Use this table as the truth source for what the MVP should and should not claim.
+Use this table as the truth source for what the MVP should and should not claim for the initial ACME adapter release.
 
-| Feature | v1 posture |
+| Feature | MVP posture |
 |---------|------------|
 | Directory URL | required |
 | `newNonce` | required |
@@ -59,9 +59,9 @@ The ACME adapter should support:
 
 - `application/jose+json` for signed ACME requests
 - `application/problem+json` for ACME-compatible error responses
-- `application/pem-certificate-chain` for certificate download in v1
+- `application/pem-certificate-chain` for certificate download in the MVP
 
-For v1, keep the certificate response format fixed rather than negotiable unless real client compatibility requires expansion later.
+For the MVP, keep the certificate response format fixed rather than negotiable unless real client compatibility requires expansion later.
 
 ### 4.2 Authentication model
 
@@ -79,11 +79,11 @@ Except where RFC 8555 says otherwise:
 
 ### 4.4 Identifier support profile
 
-The v1 ACME adapter should explicitly support:
+The MVP ACME adapter should explicitly support:
 
 - DNS identifiers
 
-The v1 ACME adapter should explicitly reject unless later implemented:
+The MVP ACME adapter should explicitly reject unless later implemented:
 
 - IP identifiers
 - identifier types other than DNS names
@@ -118,7 +118,7 @@ Challenge validation should use normal ACME key-authorization semantics:
 
 ### 4.6 External Account Binding posture
 
-- unless explicitly implemented, v1 should omit `meta.externalAccountRequired`
+- unless explicitly implemented, the MVP should omit `meta.externalAccountRequired`
 - if external account binding is not supported, reject EAB-specific expectations explicitly rather than implying support
 
 ## 5. Endpoint Summary
@@ -260,7 +260,7 @@ Purpose:
 
 Recommended posture:
 
-- mark as unsupported explicitly if not implemented in v1
+- mark as unsupported explicitly if not implemented in the MVP
 
 ### 6.4 Order endpoints
 
@@ -364,7 +364,7 @@ Purpose:
 - expose challenge details
 - accept the client's acknowledgement that the challenge is ready for validation
 
-Expected challenge types for v1:
+Expected challenge types for the MVP:
 
 - `http-01`
 - `dns-01`
@@ -444,7 +444,7 @@ Purpose:
 Recommended posture:
 
 - implement if practical for compatibility
-- if not implemented in v1, document that clearly and avoid overstating compatibility
+- if not implemented in the MVP, document that clearly and avoid overstating compatibility
 
 ## 7. HTTP Status Guidance
 

@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> `acmed` is a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and an optional ACME-compatible adapter.
+> `acmed` is a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and a runtime-optional ACME-compatible adapter.
 
 Use this document as the source of truth for project purpose, core constraints, and MVP intent.
 
@@ -10,7 +10,7 @@ Use this document as the source of truth for project purpose, core constraints, 
 
 The project goal is to build a central certificate brokerage service for internal infrastructure. The service accepts certificate requests, evaluates whether the requester is allowed to obtain the requested names, optionally performs challenge validation, delegates issuance to pluggable backends, and stores the resulting artifacts and audit trail.
 
-`acmed` is not ACME-first. ACME support is an adapter layer, not the core domain model.
+`acmed` is not ACME-first. ACME support is an adapter layer, not the core domain model. It is still part of the documented MVP scope, but it should be added only after the broker-native flow is solid.
 
 ## 2. Core Constraints
 

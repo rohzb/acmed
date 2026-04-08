@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> `acmed` should be implemented as a modular monolith: broker core, worker loop, small plugin boundaries, and an optional ACME adapter around the outside.
+> `acmed` should be implemented as a modular monolith: broker core, worker loop, small plugin boundaries, and a runtime-optional ACME adapter around the outside.
 
 Use this document as the source of truth for system shape, component boundaries, and package layout.
 
@@ -27,7 +27,7 @@ In scope:
 - pluggable authorizers, challenge providers, and issuers
 - persistent runtime state
 - auditability
-- optional ACME-compatible adapter
+- ACME-compatible adapter added after the broker-native milestones and enabled only when needed
 
 Out of scope for v1:
 
