@@ -51,11 +51,23 @@ Minimum fields:
 - `csr_source`
 - `not_before`
 - `not_after`
+- `claimed_by`
+- `claimed_at`
+- `claim_expires_at`
 - `created_at`
 - `updated_at`
 - `expires_at`
 - `error_message`
 - `dedupe_key`
+
+Field semantics for the broker-first MVP:
+
+- `request_source`: identifies which interface created the order; use `broker_api` for the initial milestone and add values such as `acme_adapter` only when those entry points exist
+- `private_key_policy`: states whether key material is service-generated, supplied by CSR, or not stored; for the broker-first milestone, prefer a small explicit set such as `service_generated` and `csr_only`
+- `csr_source`: states whether the request supplied a CSR or expects the service to generate key material and CSR; for the broker-first milestone, prefer a small explicit set such as `client_provided` and `service_generated`
+- `dedupe_key`: stable key derived from the normalized requester identity, normalized identifiers, issuer choice, and CSR/key mode so duplicate create requests can be recognized deterministically
+
+Do not turn these fields into large plugin-style registries or open-ended free-form values in the broker-first milestone unless a later iteration proves the need.
 
 ### Authorization decision
 
@@ -96,6 +108,40 @@ Minimum fields:
 - `metadata`
 - `created_at`
 
+### State transition record
+
+For the MVP, state-transition history may be represented either by:
+
+- append-only audit events with explicit `from_state` and `to_state` metadata, or
+- a dedicated transition-history table added only if query needs justify it
+
+Do not require a separate transition-history table in the broker-first milestone unless the implementation has a real query or recovery need that audit events cannot satisfy cleanly.
+
+### Retry and expiration record
+
+For the broker-first MVP, keep retry and expiration tracking on the order row.
+
+Minimum fields:
+
+- `retry_count`
+- `max_retries`
+- `expires_at`
+
+Broker-first retry rules:
+
+- initialize `retry_count` to `0`
+- set `max_retries` from configuration or policy using a small bounded default
+- move `failed` back to `pending` only when the failure is explicitly classified as retryable and `retry_count < max_retries`
+- increment `retry_count` before re-queueing a retry
+- keep terminal failures in `failed` once retries are exhausted or the failure is classified as non-retryable
+
+Broker-first expiration rules:
+
+- set `expires_at` when the order is created
+- use one bounded lifetime policy for the broker-first milestone rather than per-plugin expiration logic
+- move `pending` or `authorized` orders to `expired` when `expires_at` passes before successful issuance
+- do not retry or issue expired orders
+
 ## 3. Schema Shape
 
 For the MVP, prefer a small schema with a few well-chosen tables:
@@ -104,7 +150,102 @@ For the MVP, prefer a small schema with a few well-chosen tables:
 - `issuance_attempts`
 - `audit_events`
 
-Add dedicated authorization tables only if query requirements justify them.
+For the broker-first MVP:
+
+- keep the latest worker-claim state on the `orders` row
+- record state transitions in `audit_events` unless a dedicated transition table becomes clearly necessary
+- record authorization decisions in `audit_events` unless a dedicated authorization table becomes clearly necessary
+
+Add dedicated authorization or transition-history tables only if query requirements justify them.
+
+### 3.1 Worker Claim And Recovery Model
+
+To support atomic work claiming and restart recovery, the order row should carry the worker-claim state.
+
+Minimum worker-claim fields:
+
+- `claimed_by`
+- `claimed_at`
+- `claim_expires_at`
+
+Worker-claim rules:
+
+- a worker claims an order by atomically moving it into an in-progress lifecycle state and setting the claim fields
+- only one active claim may exist per order at a time
+- a restarted or replacement worker may reclaim an order only after the prior claim has expired or been explicitly cleared
+- successful completion or terminal failure should clear the active claim fields
+- claim duration should be bounded so stuck workers do not block recovery forever
+
+Do not introduce a separate queue or lease-management subsystem for the broker-first milestone.
+
+If the ACME adapter is enabled later, add only the persistence needed to support the documented ACME contract:
+
+- `acme_accounts`
+- `acme_account_orders`
+- `acme_authorizations`
+- `acme_challenges`
+- nonce storage only if the chosen nonce strategy requires durable state
+
+Do not add ACME-specific persistence in the first broker-native milestone unless the implementation has reached the ACME iteration described in [`incremental-delivery.md`](./incremental-delivery.md).
+
+### 3.2 Minimal ACME Persistence Model
+
+The ACME adapter should map onto the broker core without reshaping the broker order model.
+
+Minimum ACME-specific records once the adapter exists:
+
+#### ACME account
+
+Minimum fields:
+
+- `id`
+- `status`
+- `jwk_thumbprint` or equivalent stable account-key identifier
+- `contact`
+- `created_at`
+- `updated_at`
+
+#### ACME account-order link
+
+Minimum fields:
+
+- `account_id`
+- `order_id`
+- `created_at`
+
+#### ACME authorization
+
+Minimum fields:
+
+- `id`
+- `order_id`
+- `identifier_type`
+- `identifier_value`
+- `status`
+- `expires_at`
+- `wildcard`
+
+#### ACME challenge
+
+Minimum fields:
+
+- `id`
+- `authorization_id`
+- `type`
+- `token`
+- `status`
+- `validated_at`
+- `error_code`
+- `error_detail`
+
+#### Nonce handling
+
+The implementation may use either:
+
+- stateless nonces with verifiable server-side encoding, or
+- a small nonce store with expiration and one-time-use tracking
+
+Whichever strategy is chosen, it must support the nonce behavior documented in [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 4. Storage Model
 
@@ -126,11 +267,17 @@ Used for:
 Used for:
 
 - orders
+- worker claims and recovery metadata
 - state transitions
 - issuer attempts
 - audit events
 - deduplication keys
-- renewal tracking
+
+For the broker-first MVP:
+
+- store authorization outcomes in order metadata and audit events unless a separate table is justified
+- store state-transition history in audit events unless a separate table is justified
+- treat renewal tracking as a later addition unless an implementation slice truly needs it
 
 SQLite also serves as the worker coordination mechanism.
 
@@ -154,10 +301,45 @@ Recommended per-order files:
 - `issuer-output.log`
 - `challenge-output.log`
 
+### Admin surface
+
+For the MVP, keep the admin API intentionally small.
+
+Recommended admin-only endpoints:
+
+- `GET /api/v1/admin/orders`
+- `GET /api/v1/admin/orders/<order_id>`
+- `GET /api/v1/admin/audit-events/<order_id>`
+
+Admin endpoints should be limited to:
+
+- cross-requester order inspection
+- audit inspection
+- operational visibility needed for support and troubleshooting
+
+Do not add write-heavy or lifecycle-mutating admin endpoints in the broker-first milestone unless a later document explicitly requires them.
+
+### Health surface
+
+For the broker-first MVP, keep health endpoints minimal.
+
+Recommended health endpoints:
+
+- `GET /health/live`
+- `GET /health/ready`
+
+Health endpoint expectations:
+
+- keep them unauthenticated unless deployment policy requires otherwise
+- `GET /health/live` should report only that the process is running
+- `GET /health/ready` should verify configuration load, SQLite availability, and access to the artifacts root
+- do not add deep integration checks or issuer-specific probes to the broker-first readiness contract
+
 ## 5. Configuration Shape
 
-Configuration examples should stay aligned with the documented test strategy:
+Configuration examples should stay aligned with the documented delivery and test strategy:
 
+- start with the broker-native happy path before enabling ACME compatibility
 - use local, deterministic settings for routine automated testing
 - prefer Pebble-oriented ACME settings for local integration runs
 - treat Let’s Encrypt staging as optional external verification rather than the default test target
@@ -175,11 +357,10 @@ identity:
     enabled: false
 
 acme:
-  enabled: true
+  enabled: false
   directory_path: /acme/directory
   supported_challenges:
     - http-01
-    - dns-01
   revoke_cert_enabled: false
   key_change_enabled: false
   external_account_binding:
@@ -196,32 +377,27 @@ workers:
 issuers:
   - name: mock
     type: mock
-  - name: letsencrypt
-    type: certbot
-    directory_url: https://acme-v02.api.letsencrypt.org/directory
 
 challenge_providers:
   - name: no-challenge
     type: noop
-  - name: dns-hook
-    type: dns_hook
-    command: /usr/local/bin/acmed-dns-hook
 
 authorizers:
   - name: subnet-lab
     type: source_subnet
     source_subnets:
       - 10.20.30.0/24
-  - name: dns-match
-    type: dns_resolves_to_source
 
 policies:
-  - name: lab-network
+  - name: lab-broker-happy-path
     requester_match:
       authorizers:
         - subnet-lab
     allowed_domains:
-      - "*.lab.example.org"
-    issuer: letsencrypt
-    challenge: dns-01
+      - host1.lab.example.org
+      - host2.lab.example.org
+    issuer: mock
+    challenge: no-challenge
 ```
+
+When the implementation reaches the ACME iteration, add a second example or environment-specific override that enables ACME, Pebble-oriented integration settings, and any supported challenge-provider configuration. Do not let the first example imply that wildcard issuance, external ACME backends, or production Let’s Encrypt integration are part of the initial milestone.

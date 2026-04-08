@@ -125,6 +125,8 @@ Include:
 - denial path
 - failure path
 - retry classification
+- bounded retry counters and retry exhaustion behavior
+- order expiration handling
 - audit details for denials and failures
 - secret redaction checks
 
@@ -132,6 +134,7 @@ Done when:
 
 - denied requests land in `denied`
 - failed requests land in `failed`
+- expired orders land in `expired`
 - failure behavior is tested and documented
 
 ## 8. Iteration 3: Broker-Native Challenge Expansion

@@ -42,8 +42,8 @@ The project goal is to build a central certificate brokerage service for interna
 3. [`data-model.md`](./data-model.md)
 4. [`security-operations.md`](./security-operations.md)
 5. [`incremental-delivery.md`](./incremental-delivery.md)
-6. [`implementation-checklist.md`](./implementation-checklist.md)
-7. [`implementation-guide.md`](./implementation-guide.md)
+6. [`implementation-guide.md`](./implementation-guide.md)
+7. [`implementation-checklist.md`](./implementation-checklist.md)
 8. [`acme-api-reference.md`](./acme-api-reference.md)
 9. [`acme-compatibility.md`](./acme-compatibility.md)
 

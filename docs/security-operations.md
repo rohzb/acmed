@@ -110,6 +110,14 @@ Operational notes:
 - Order state transitions must remain valid even if an external tool crashes.
 - Security-sensitive failures should fail closed rather than silently downgrading behavior.
 
+Worker-claim expectations:
+
+- each in-progress order should have one active worker claim at a time
+- claim state should be persisted on the order record rather than in a separate queue system for the broker-first milestone
+- claims should expire after a bounded interval so abandoned work can be recovered
+- recovery should reclaim only expired or explicitly released claims
+- claim acquisition should be implemented with short, atomic SQLite writes
+
 ## 11. Failure Modes
 
 | Area | Risk | Expected handling |

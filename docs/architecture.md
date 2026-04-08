@@ -66,7 +66,7 @@ Basic safety must exist in the first implementation, especially for:
 
 ## 4. System Overview
 
-## 4.1 Core Components
+### 4.1 Core Components
 
 | Component | Responsibility |
 |----------|-----------------|
@@ -77,7 +77,7 @@ Basic safety must exist in the first implementation, especially for:
 | Storage | SQLite runtime state plus filesystem artifacts |
 | ACME adapter | Expose the documented ACME contract without reshaping the broker core |
 
-## 4.2 Context Diagram
+### 4.2 Context Diagram
 
 ```mermaid
 graph TD
@@ -94,7 +94,7 @@ graph TD
   Worker --> Audit[Audit log]
 ```
 
-## 4.3 Recommended Package Layout
+### 4.3 Recommended Package Layout
 
 ```text
 src/acmed/

@@ -45,6 +45,7 @@ Implement:
 - typed config models
 - order domain models
 - state machine definitions
+- explicit semantics for `request_source`, `private_key_policy`, `csr_source`, and `dedupe_key`
 - plugin protocols or abstract base classes
 - error classes
 - security-sensitive value handling rules for identities, secrets, and artifacts
@@ -60,9 +61,11 @@ Implement:
 - SQLite schema and repository layer
 - artifact path layout
 - audit event persistence
+- worker-claim persistence on order rows
 - order deduplication key handling
 - secure file and directory permission behavior
 - secret-redaction helpers for logs and audit metadata
+- audit-backed recording for state transitions and authorization decisions unless dedicated tables become justified
 
 Deliverable:
 
@@ -87,7 +90,8 @@ Deliverable:
 Implement:
 
 - broker API routes
-- admin routes
+- admin inspection routes limited to `GET /api/v1/admin/orders`, `GET /api/v1/admin/orders/<order_id>`, and `GET /api/v1/admin/audit-events/<order_id>`
+- health routes limited to `GET /health/live` and `GET /health/ready`
 - request and response schemas
 - identity extraction from API token or mTLS metadata
 - HTTPS or deployment-time TLS expectations
@@ -96,6 +100,7 @@ Implement:
 Deliverable:
 
 - API tests prove that order creation and order inspection work
+- the admin surface stays limited to the documented MVP inspection endpoints
 
 ### Phase 5: Worker and plugins
 
@@ -211,6 +216,7 @@ Responsibilities:
 - normalize DNS names
 - resolve matching policy
 - compute deduplication key
+- set initial retry and expiration fields
 - persist a `pending` order
 - rely on the worker loop to pick up pending work
 
@@ -230,6 +236,14 @@ Responsibilities:
 - execute authorizers, challenge providers, and issuers
 - persist audit events
 - classify retryable and terminal failures
+- enforce retry exhaustion and order expiration rules before issuing work
+
+Claiming responsibilities:
+
+- acquire work through atomic SQLite updates on the order row
+- persist `claimed_by`, `claimed_at`, and `claim_expires_at`
+- clear or refresh claims as processing progresses
+- recover only expired or explicitly cleared claims after restart
 
 Security responsibilities:
 
@@ -260,7 +274,7 @@ Security responsibilities:
 
 The canonical configuration example lives in [`data-model.md`](./data-model.md).
 
-The initial config model should include:
+For the broker-first initial milestone, the config model should include:
 
 - server bind settings
 - storage paths
@@ -273,6 +287,12 @@ The initial config model should include:
 - logging level or audit options
 - transport-security settings
 - secret-source settings or secret references
+- broker-first retry limit and order lifetime settings
+
+For the broker-first MVP, keep admin API configuration minimal. Prefer one admin authentication mechanism shared with the main service rather than a separate admin subsystem.
+
+Add these settings when the implementation reaches the ACME iteration:
+
 - ACME adapter enablement and directory settings
 - ACME supported challenge configuration
 - ACME optional endpoint toggles such as revocation and key change
@@ -292,7 +312,7 @@ Validation expectations:
 
 ## 8. Testing Requirements
 
-At minimum, add tests for:
+For the broker-first milestone, add tests for:
 
 - valid and invalid state transitions
 - order deduplication decisions
@@ -303,6 +323,20 @@ At minimum, add tests for:
 - denied order handling
 - artifact storage writes
 - broker API create and read endpoints
+- worker claim acquisition and expired-claim recovery
+- retryable versus terminal failure classification
+- retry exhaustion behavior
+- order expiration behavior
+- `GET /health/live` and `GET /health/ready`
+- TLS or secure deployment configuration checks
+- deny-by-default authorization behavior
+- admin endpoint access restrictions
+- secret redaction behavior
+- safe subprocess invocation behavior
+- artifact permission behavior where the platform supports it
+
+When the implementation reaches the ACME iteration, add tests for:
+
 - ACME adapter translation boundaries
 - ACME account creation and account lookup flow
 - ACME `newOrder` to `finalize` to certificate retrieval flow
@@ -316,12 +350,6 @@ At minimum, add tests for:
 - DNS identifier normalization behavior
 - an end-to-end smoke test with `certbot`
 - an end-to-end smoke test with `acme.sh`
-- TLS or secure deployment configuration checks
-- deny-by-default authorization behavior
-- admin endpoint access restrictions
-- secret redaction behavior
-- safe subprocess invocation behavior
-- artifact permission behavior where the platform supports it
 
 Documentation-oriented checks should also verify:
 
@@ -363,6 +391,8 @@ Generate at least:
 - coding standards documentation that states banner, typing, and docstring requirements
 - a short architecture note that explains why the MVP intentionally avoids extra moving parts
 - a security note that documents default protections, threat assumptions, and operator responsibilities
+- a short admin API note that lists the MVP admin-only endpoints and their read-only intent
+- a short health-endpoint note that defines the MVP liveness and readiness behavior
 - an ACME compatibility note that lists supported endpoints, challenge types, and known client-facing limitations
 - the authoritative ACME API reference in [`acme-api-reference.md`](./acme-api-reference.md)
 - explicit notes on ACME identifier support, ownership rules, error behavior, EAB posture, and account-orders behavior
