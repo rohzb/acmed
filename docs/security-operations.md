@@ -4,6 +4,8 @@
 > **TL;DR**
 > This document defines the security baseline, abuse controls, runtime topology, startup expectations, and major failure modes for `acmed`.
 
+Use this document as the source of truth for security defaults, operational expectations, and failure-handling posture.
+
 ## 1. Security Baseline
 
 Design for at least these threats:

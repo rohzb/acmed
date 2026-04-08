@@ -4,6 +4,8 @@
 > **TL;DR**
 > `acmed` is a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and an optional ACME-compatible adapter.
 
+Use this document as the source of truth for project purpose, core constraints, and MVP intent.
+
 ## 1. Purpose
 
 The project goal is to build a central certificate brokerage service for internal infrastructure. The service accepts certificate requests, evaluates whether the requester is allowed to obtain the requested names, optionally performs challenge validation, delegates issuance to pluggable backends, and stores the resulting artifacts and audit trail.

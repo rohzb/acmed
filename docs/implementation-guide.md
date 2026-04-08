@@ -6,7 +6,7 @@
 
 ## 1. Goal
 
-Use this document as the implementation instruction set for generating the initial `acmed` codebase. It turns the project brief and architecture into code-shape guidance, package responsibilities, runtime contracts, and validation rules.
+Use this document as the implementation instruction set for generating the initial `acmed` codebase. It turns the project overview and architecture into code-shape guidance, package responsibilities, runtime contracts, and validation rules.
 
 Keep this document focused on how to implement the code. The authoritative lifecycle, storage, configuration, API, security, and delivery contracts live in the companion documents it links to.
 
