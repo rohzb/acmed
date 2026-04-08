@@ -4,6 +4,8 @@
 > **TL;DR**
 > This document defines the broker order lifecycle, the core runtime records, the storage model, and the configuration shape.
 
+Use this document as the source of truth for broker lifecycle, storage, configuration, and broker-native API shape.
+
 ## 1. Order Lifecycle
 
 Required states:

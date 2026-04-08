@@ -6,6 +6,8 @@
 
 Use [`delivery-plan.md`](./delivery-plan.md) to decide what to build first and what to delay to later iterations.
 
+This file is intentionally terse. Use the other documents for the underlying system rules and contracts.
+
 ## 1. Iteration 0: Bootstrapping
 
 - [ ] Define typed config models.

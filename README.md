@@ -7,7 +7,7 @@
 
 This directory contains the design and implementation guidance for `acmed`, a small, policy-driven certificate broker with a broker-native API, a SQLite-backed worker loop, and an optional ACME-compatible adapter.
 
-The document set is organized under [`docs/`](docs/) so this directory can serve as a clean future repository root.
+Use this README as the index for the document set.
 
 ## Documents
 
@@ -20,6 +20,13 @@ The document set is organized under [`docs/`](docs/) so this directory can serve
 - Code generation and implementation conventions: [`docs/implementation-guide.md`](docs/implementation-guide.md)
 - ACME-visible protocol behavior: [`docs/acme-api-reference.md`](docs/acme-api-reference.md)
 - ACME client smoke tests and compatibility notes: [`docs/acme-compatibility.md`](docs/acme-compatibility.md)
+
+Suggested use:
+
+1. Start with [`docs/overview.md`](docs/overview.md).
+2. Use [`docs/architecture.md`](docs/architecture.md), [`docs/data-model.md`](docs/data-model.md), and [`docs/security-operations.md`](docs/security-operations.md) for the system contract.
+3. Use [`docs/delivery-plan.md`](docs/delivery-plan.md) and [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for execution.
+4. Use the ACME documents only when working on the ACME adapter.
 
 If two documents appear to disagree:
 

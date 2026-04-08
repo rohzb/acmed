@@ -4,6 +4,8 @@
 > **TL;DR**
 > This document collects practical compatibility notes and smoke-test examples for `certbot` and `acme.sh`. The protocol contract itself lives in [`acme-api-reference.md`](./acme-api-reference.md).
 
+This document is practical, not normative. Use [`acme-api-reference.md`](./acme-api-reference.md) for the actual ACME contract.
+
 ## 1. Purpose
 
 Use this document for:

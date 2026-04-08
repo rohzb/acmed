@@ -4,6 +4,8 @@
 > **TL;DR**
 > `acmed` should be implemented as a modular monolith: broker core, worker loop, small plugin boundaries, and an optional ACME adapter around the outside.
 
+Use this document as the source of truth for system shape, component boundaries, and package layout.
+
 ## 1. Objective
 
 Build a certificate issuance service that centralizes policy decisions while staying small, fast, and understandable.

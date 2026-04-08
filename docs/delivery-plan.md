@@ -12,6 +12,13 @@ Use this document to guide implementation sequencing.
 
 The goal is to keep the project moving through working iterations instead of attempting a full, speculative implementation up front. Each iteration should leave the repository in a runnable, testable, and truthfully documented state.
 
+Document boundaries:
+
+- use [`architecture.md`](./architecture.md), [`data-model.md`](./data-model.md), and [`security-operations.md`](./security-operations.md) for the system contract
+- use this document for sequencing, stop rules, and MVP completion
+- use [`implementation-checklist.md`](./implementation-checklist.md) for day-to-day execution
+- use [`acme-api-reference.md`](./acme-api-reference.md) for ACME-visible behavior
+
 ## 2. Core Delivery Rule
 
 Do not build for the final shape first.

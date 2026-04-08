@@ -4,6 +4,8 @@
 > **TL;DR**
 > This document is the authoritative ACME-facing contract for `acmed`. If the implementation exposes ACME endpoints, their client-visible behavior should follow this file.
 
+Use this document as the source of truth for ACME-visible behavior. If it conflicts with a planning note or smoke-test example, prefer this file.
+
 ## 1. Purpose
 
 Use this document as the ACME protocol reference for the `acmed` adapter.
