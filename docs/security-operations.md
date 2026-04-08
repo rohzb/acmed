@@ -28,6 +28,19 @@ Design for at least these threats:
 - evaluate authorization with deny-by-default behavior
 - require explicit requester-to-domain authorization before issuance
 
+Broker-first authentication posture:
+
+- make API-token authentication the required happy-path identity mechanism for Iteration 1
+- treat mTLS support as optional until a later slice requires or tests it
+- store token secrets outside YAML and compare them using constant-time checks
+- keep one stable authenticated subject for the full request lifecycle, including audit writes and deduplication
+
+Admin endpoint posture:
+
+- require normal requester authentication before any admin privilege check
+- grant admin access only to explicitly configured subjects from `access.admin_subjects`
+- do not infer admin rights from network location, issuer choice, or requested domains
+
 ## 3. Authorization Safety
 
 - fail closed on parse errors, missing references, or ambiguous matches
@@ -84,6 +97,12 @@ Do not invoke a shell unless there is no safer alternative.
 - reject obviously excessive SAN counts or request sizes early
 - keep renewal and retry logic bounded
 
+Broker-first default limits:
+
+- use the documented defaults from [`policy-config.md`](./policy-config.md) unless a deployment overrides them explicitly
+- enforce the request body and SAN-count limits at the HTTP boundary before policy lookup or deduplication
+- enforce the per-requester create-order rate limit on authenticated identity rather than on source IP alone
+
 ## 8. Runtime Topology
 
 The minimal deployment can run as:
@@ -105,6 +124,13 @@ Operational notes:
 3. Open or initialize SQLite schema.
 4. Start the worker loop.
 5. Start HTTP server.
+
+Startup must also fail closed when:
+
+- configured API-token subjects or admin subjects are duplicated after normalization
+- mTLS is enabled without a trust anchor
+- configured request or retry limits are zero, negative, or unreasonably malformed
+- artifact or database paths cannot be created with the required restrictive permissions
 
 ## 10. Background Processing Expectations
 

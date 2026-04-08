@@ -49,6 +49,24 @@ The docs should answer:
 - which ACME features are in scope for the MVP, including `http-01`, `dns-01`, and External Account Binding
 - which tests are required before claiming broker-native or ACME compatibility
 
+Implementation decisions already fixed in the companion docs:
+
+- broker-first delivery starts with the broker API, SQLite storage, worker loop, and mock issuer before any ACME endpoint work
+- Iteration 1 should use API-token requester identity as the required happy-path authentication method; mTLS stays documented but optional until a later slice needs it
+- requester-facing broker reads must fail closed and avoid existence leaks; unauthorized order reads should look the same as unknown-order reads
+- duplicate broker create requests should reuse the active logical order instead of creating parallel active orders
+- `csr_pem` is allowed only when the selected policy permits client-provided CSR mode; otherwise the service generates key material and CSR
+- requester-facing broker responses should omit artifact download links until a concrete retrieval endpoint is documented and implemented
+- worker reclaim should be limited to `pending` and recoverable `authorized` orders with expired or empty claims
+- wildcard ACME support remains out of scope until the full `dns-01` wildcard path is implemented end to end
+
+Readiness review focus areas before coding:
+
+- use the broker HTTP status matrix in [`docs/broker-api-reference.md`](docs/broker-api-reference.md) instead of inventing per-endpoint behavior
+- use the operational defaults and config keys in [`docs/policy-config.md`](docs/policy-config.md) for request limits, retry bounds, and claim duration
+- use the worker-claim eligibility and retry rules in [`docs/data-model.md`](docs/data-model.md) for restart recovery behavior
+- use the startup and admin-auth rules in [`docs/security-operations.md`](docs/security-operations.md) for safe first-slice runtime behavior
+
 Suggested start order:
 
 1. Implement Iteration 0 and Iteration 1 from [`docs/delivery-plan.md`](docs/delivery-plan.md) before adding real issuer subprocesses or ACME endpoints.

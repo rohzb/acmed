@@ -24,8 +24,31 @@ server:
 identity:
   api_tokens:
     enabled: true
+    tokens:
+      - token_id: lab-client-1
+        subject: host1.lab.example.org
+        secret_env: ACMED_TOKEN_LAB_CLIENT_1
+        roles:
+          - requester
   mtls:
     enabled: false
+    trusted_client_ca_file: null
+    subject_mappings: []
+
+access:
+  admin_subjects:
+    - acmed-admin
+
+limits:
+  max_dns_names_per_order: 25
+  max_csr_bytes: 32768
+  max_request_body_bytes: 65536
+  create_order_rate_limit_per_minute: 30
+
+orders:
+  default_ttl_seconds: 3600
+  claim_ttl_seconds: 300
+  max_retries: 3
 
 acme:
   enabled: false
@@ -85,6 +108,43 @@ For the ACME MVP, the enabled ACME configuration should:
 - advertise both `http-01` and `dns-01`
 - require External Account Binding for account creation
 - keep wildcard support disabled unless the full `dns-01` wildcard path is implemented end to end
+
+### 1.1 Broker-first operational defaults
+
+Unless a later slice has a documented reason to override them, use these broker-first defaults:
+
+- `limits.max_dns_names_per_order`: `25`
+- `limits.max_csr_bytes`: `32768`
+- `limits.max_request_body_bytes`: `65536`
+- `limits.create_order_rate_limit_per_minute`: `30`
+- `orders.default_ttl_seconds`: `3600`
+- `orders.claim_ttl_seconds`: `300`
+- `orders.max_retries`: `3`
+
+Treat these as explicit documented defaults rather than as placeholders.
+
+### 1.2 Identity and admin configuration
+
+Broker-first identity rules:
+
+- support API-token authentication in the first runnable slice
+- treat each configured API token as one stable requester subject
+- resolve `requester_id` from the token's configured `subject`
+- read token secret material from an environment variable named by `secret_env` rather than from inline YAML secret text
+- reject startup if two enabled tokens resolve to the same `token_id` or same `subject`
+
+mTLS configuration rules:
+
+- allow `mtls.enabled: false` for the broker-first local path
+- require `trusted_client_ca_file` when `mtls.enabled: true`
+- if mTLS subject mappings are configured, apply them after certificate verification and before policy lookup
+- reject startup if a mapping would resolve to an empty or duplicate requester subject
+
+Admin configuration rules:
+
+- treat `access.admin_subjects` as the small explicit allow-list for admin endpoints
+- require the authenticated subject to appear in `access.admin_subjects` before serving `/api/v1/admin/*`
+- do not derive admin privilege from policy matches or requested identifiers
 
 ## 2. Policy Matcher Syntax
 
@@ -194,6 +254,14 @@ Requester identity rules for the broker-first MVP:
 - when API tokens are used, bind `requester_id` to the token's configured subject or principal name
 - when mTLS is used, bind `requester_id` to the verified client certificate identity after any configured mapping step
 - never allow the requester to override `requester_id` in the JSON payload
+
+Client input mode rules:
+
+- if the request includes `csr_pem`, treat it as a request for `client_provided` CSR mode
+- if the request omits `csr_pem`, treat it as a request for `service_generated` CSR mode
+- accept the request only if the selected policy and issuer path support that mode
+- reject requests that include `csr_pem` but select a policy path that requires service-generated key material
+- reject requests that omit `csr_pem` when the selected policy path requires a client-provided CSR
 
 ### 3.2 Policy Resolution
 

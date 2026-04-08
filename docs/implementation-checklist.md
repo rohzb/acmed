@@ -13,6 +13,7 @@ This file is intentionally terse. Use the other documents for the underlying sys
 ## 1. Iteration 0: Bootstrapping
 
 - [ ] Define typed config models.
+- [ ] Define typed config models for token subjects, admin subjects, request limits, order TTL, claim TTL, and retry bounds.
 - [ ] Define order models and state values.
 - [ ] Implement the order lifecycle state machine.
 - [ ] Define interfaces for authorizers, challenge providers, and issuers.
@@ -28,18 +29,23 @@ This file is intentionally terse. Use the other documents for the underlying sys
 - [ ] Implement audit-event writes.
 - [ ] Implement deduplication key handling.
 - [ ] Normalize broker-native requests.
+- [ ] Enforce request size and SAN-count limits at the HTTP boundary.
 - [ ] Parse and validate `allowed_domains` entries with explicit `syntax` and `value` fields.
 - [ ] Support `exact` and `suffix` policy syntax in the broker-first matcher.
 - [ ] Resolve policy and issuer/challenge choices.
+- [ ] Enforce CSR mode selection from `csr_pem` presence versus selected policy mode.
 - [ ] Persist new orders as `pending`.
 - [ ] Implement asynchronous worker pickup.
+- [ ] Restrict worker claim pickup to `pending` and recoverable `authorized` orders.
 - [ ] Transition orders through authorization, issuance, and terminal states.
 
 - [ ] Add `POST /api/v1/orders`.
 - [ ] Add `GET /api/v1/orders/<order_id>`.
 - [ ] Add `GET /api/v1/orders`.
 - [ ] Keep broker and admin order-list responses minimal and newest-first by default.
+- [ ] Return `404` for requester-scoped reads of both missing and not-owned orders.
 - [ ] Enforce requester authentication and order access control.
+- [ ] Enforce admin access through the explicit admin-subject allow-list.
 
 - [ ] Enforce TLS outside explicit local development mode.
 - [ ] Enforce deny-by-default authorization.
@@ -96,6 +102,7 @@ This file is intentionally terse. Use the other documents for the underlying sys
 - [ ] Keep broker-native request and response behavior documented in [`broker-api-reference.md`](./broker-api-reference.md).
 - [ ] Keep policy and configuration behavior documented in [`policy-config.md`](./policy-config.md).
 - [ ] Keep ACME-visible behavior documented in [`acme-api-reference.md`](./acme-api-reference.md).
+- [ ] Keep broker implementation defaults synchronized across [`README.md`](../README.md), [`policy-config.md`](./policy-config.md), and [`implementation-guide.md`](./implementation-guide.md).
 
 ## 9. MVP Done
 

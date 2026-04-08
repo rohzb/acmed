@@ -21,8 +21,16 @@ Recommended request fields:
 - `dns_names`
 - `common_name` when needed by policy or issuer behavior
 - `issuer_name` when the client may select from allowed policy options; otherwise derive it from policy
-- `csr_pem` only when `csr_source` is `client_provided`
+- `csr_pem` only when the selected request mode is client-provided CSR
 - `idempotency_key` when client-driven request deduplication is supported
+
+Create-order request rules:
+
+- reject empty `dns_names`, duplicate names after normalization, malformed names, or a `common_name` not present in `dns_names`
+- if `issuer_name` is supplied, treat it as a constraint on policy resolution rather than as an unrestricted override
+- if `csr_pem` is supplied, accept it only when the selected policy path permits client-provided CSR mode
+- if `csr_pem` is omitted, accept the request only when the selected policy path permits service-generated CSR mode
+- reject request bodies that exceed the documented size or SAN-count limits from [`policy-config.md`](./policy-config.md)
 
 Do not require clients to supply internal or computed fields such as:
 
@@ -85,6 +93,12 @@ Artifact reference shape should stay minimal. Prefer:
 
 Do not expose internal worker-claim fields, raw audit metadata, raw filesystem paths, or secret-bearing artifact details through the broker-first requester-facing order API.
 
+Requester-facing artifact retrieval posture for the broker-first MVP:
+
+- do not expose artifact download URLs until a concrete retrieval endpoint is documented and implemented
+- if artifacts exist, the requester-facing order view may expose only stable logical artifact names or an `artifacts_available` boolean
+- keep real artifact retrieval as an admin or later-slice capability until requester-scoped download authorization is specified explicitly
+
 ## 4. List Orders
 
 `GET /api/v1/orders` should return a requester-scoped list of the caller's own orders.
@@ -113,7 +127,26 @@ Admin list rules:
 - include `requester_id` in the admin list view
 - keep the first milestone simple: omit pagination, filtering, and sorting controls unless a real slice requires them
 
-## 6. Error Posture
+## 6. HTTP Status Matrix
+
+Use these broker HTTP statuses as the implementation baseline:
+
+| Action | Condition | Status |
+|--------|-----------|--------|
+| `POST /api/v1/orders` | new order created | `201 Created` |
+| `POST /api/v1/orders` | duplicate active order reused | `200 OK` |
+| `POST /api/v1/orders` | malformed or client-correctable input | `400 Bad Request` |
+| `POST /api/v1/orders` | missing or invalid authentication | `401 Unauthorized` |
+| `POST /api/v1/orders` | authenticated requester not allowed by policy | `403 Forbidden` |
+| `POST /api/v1/orders` | idempotency conflict or incompatible duplicate payload | `409 Conflict` |
+| `GET /api/v1/orders/<order_id>` | owned order found | `200 OK` |
+| `GET /api/v1/orders/<order_id>` | unknown order or not owned by requester | `404 Not Found` |
+| `GET /api/v1/orders` | requester-scoped list returned | `200 OK` |
+| `GET /api/v1/admin/orders` | authenticated admin list returned | `200 OK` |
+| `GET /api/v1/admin/orders` | caller authenticated but not in admin allow-list | `403 Forbidden` |
+| any endpoint | unexpected internal failure | `500 Internal Server Error` |
+
+## 7. Error Posture
 
 For the broker-first MVP, keep requester-facing API errors compact and fail closed.
 
@@ -124,7 +157,13 @@ Recommended rules:
 - return validation failures with field-level detail only for client-correctable input errors
 - reserve internal execution detail for admin and audit views rather than requester-facing responses
 
-## 7. Related Documents
+Ownership-disclosure rules:
+
+- requester-facing order reads should return `404 Not Found` for both unknown orders and orders owned by a different requester
+- requester-facing create-order failures may return `403 Forbidden` for policy denial because the caller already proved identity for its own request
+- admin endpoints may return `403 Forbidden` when the caller is authenticated but not in the admin allow-list
+
+## 8. Related Documents
 
 For lifecycle, persistence, artifact layout, and admin-surface boundaries, use [`data-model.md`](./data-model.md).
 

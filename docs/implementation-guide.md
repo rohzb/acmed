@@ -16,7 +16,19 @@ Companion documents:
 - use [`delivery-plan.md`](./delivery-plan.md) for iteration order, scope boundaries, and MVP done criteria
 - use [`acme-compatibility.md`](./acme-compatibility.md) for client smoke-test examples and compatibility notes
 
-## 2. Implementation Priorities
+## 2. First-slice Implementation Decisions
+
+Use these decisions as fixed inputs for the first implementation pass:
+
+- implement API-token authentication before optional mTLS support
+- treat requester-facing broker order reads as `404` for both unknown and not-owned orders
+- return `201` only for truly new broker orders and `200` when create-order deduplication reuses an existing active order
+- treat `csr_pem` presence as the request for client-provided CSR mode and its absence as the request for service-generated CSR mode
+- omit requester-facing artifact download endpoints until a concrete download contract is documented
+- let worker claim acquisition target only `pending` and recoverable `authorized` orders
+- use the documented defaults for request size, SAN count, retry count, order TTL, and claim TTL from [`policy-config.md`](./policy-config.md)
+
+## 3. Implementation Priorities
 
 The code generation effort should optimize for:
 
@@ -30,7 +42,7 @@ The code generation effort should optimize for:
 
 For the MVP, prefer a modular monolith over a highly segmented architecture.
 
-## 3. Recommended Lean Package Responsibilities
+## 4. Recommended Lean Package Responsibilities
 
 | Package | Responsibility |
 |--------|-----------------|
@@ -53,7 +65,7 @@ Entrypoint responsibility:
 
 - `main.py` should load config, initialize storage, start the worker loop, and serve the HTTP application for the broker-first MVP
 
-## 4. Design Rules for Generated Code
+## 5. Design Rules for Generated Code
 
 1. Keep the order model protocol-neutral.
 2. Do not embed issuer-specific logic inside the state machine.
@@ -74,7 +86,7 @@ Entrypoint responsibility:
 17. Make ACME identifier support, ownership checks, and error behavior explicit in code and tests.
 18. Make DNS normalization and account-scoped resource ownership explicit rather than implicit.
 
-## 5. Runtime Contracts
+## 6. Runtime Contracts
 
 Authoritative companion contracts:
 
@@ -161,7 +173,7 @@ Security responsibilities:
 - distinguish sensitive files such as `private.key` from public certificate outputs
 - support cleanup or retention rules for sensitive artifacts
 
-## 6. Configuration Validation Rules
+## 7. Configuration Validation Rules
 
 The canonical configuration example lives in [`policy-config.md`](./policy-config.md).
 
@@ -179,8 +191,11 @@ When generating config models and validation logic:
 - reject unsupported `allowed_domains` pattern syntax at startup rather than falling back to permissive matching
 - reject `allowed_domains` entries that omit `syntax` or `value`
 - reject regex-backed policy patterns unless regex policy mode is explicitly enabled by a later implementation slice
+- reject duplicate API-token subjects or duplicate admin subjects after normalization
+- reject non-positive request limits, retry limits, or claim/order TTL values
+- reject inline token secrets in YAML when `secret_env` is the documented configuration path
 
-## 7. Minimum Test Contract
+## 8. Minimum Test Contract
 
 The first generated code should make the required tests obvious rather than leaving coverage strategy implicit.
 
@@ -195,6 +210,9 @@ Broker-first tests should cover at least:
 - syntax-tagged regex policy rejection behavior when regex mode is disabled
 - worker claim, recovery, and retry classification behavior
 - artifact permission handling for sensitive outputs
+- broker HTTP status behavior for create-order reuse, policy denial, and hidden unauthorized reads
+- API-token authentication, admin allow-list checks, and secret-env loading behavior
+- CSR mode selection and rejection behavior for mismatched `csr_pem` versus policy mode
 
 ACME tests should cover at least:
 
@@ -205,7 +223,7 @@ ACME tests should cover at least:
 - order, authorization, and challenge status progression for both `http-01` and `dns-01`
 - finalize CSR matching and certificate retrieval behavior
 
-## 8. Avoid During Generation
+## 9. Avoid During Generation
 
 Do not:
 

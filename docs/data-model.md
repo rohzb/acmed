@@ -202,11 +202,17 @@ Worker-claim rules:
 
 Recommended claim algorithm for the broker-first MVP:
 
-- select candidate orders from eligible non-terminal states with expired-or-empty claim fields
+- select candidate orders only from `pending` plus recoverable `authorized` states with expired-or-empty claim fields
 - claim one order with a short SQLite transaction that updates both lifecycle state and claim fields together
 - treat `claim_expires_at` as a lease, not as proof that the previous worker stopped cleanly
 - refresh or clear the claim only from the worker that currently owns `claimed_by`
 - prefer small worker concurrency and frequent polling over long claim durations
+
+Recoverable `authorized` state means:
+
+- the order already completed authorization and any broker-native challenge path needed for that authorization decision
+- the order has not reached terminal issuance success or terminal failure
+- the worker can resume at the issuance step without re-running authorization side effects that were already recorded as complete
 
 Do not introduce a separate queue or lease-management subsystem for the broker-first milestone.
 
