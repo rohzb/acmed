@@ -156,6 +156,12 @@ Recommended per-order files:
 
 ## 5. Configuration Shape
 
+Configuration examples should stay aligned with the documented test strategy:
+
+- use local, deterministic settings for routine automated testing
+- prefer Pebble-oriented ACME settings for local integration runs
+- treat Let’s Encrypt staging as optional external verification rather than the default test target
+
 ```yaml
 server:
   host: 0.0.0.0

@@ -158,6 +158,7 @@ The ACME adapter must preserve ACME-visible behavior, but the broker core must s
 
 - Order lifecycle, schema, storage, and config shape: [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md)
 - Security rules, runtime topology, and operational handling: [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md)
+- Delivery sequencing and iteration boundaries: [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md)
 - Build order, tests, and acceptance criteria: [`implementation-guide.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-guide.md)
 - Execution-oriented task sequence: [`implementation-checklist.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-checklist.md)
 - ACME-visible protocol behavior: [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)

@@ -31,6 +31,8 @@ The project goal is to build a central certificate brokerage service for interna
 - pluggable authorizers, challenge providers, and issuers
 - structured audit logging
 - ACME adapter for the documented supported feature set
+- automated testing with `pytest`
+- local ACME integration testing with Pebble
 - real-client ACME smoke tests with `certbot` and `acme.sh`
 
 ## 4. Reading Order
@@ -39,10 +41,11 @@ The project goal is to build a central certificate brokerage service for interna
 2. [`architecture.md`](/workspaces/cfg-pi-wizzy/local/acmed/architecture.md)
 3. [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md)
 4. [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md)
-5. [`implementation-guide.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-guide.md)
+5. [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md)
 6. [`implementation-checklist.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-checklist.md)
-7. [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
-8. [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md)
+7. [`implementation-guide.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-guide.md)
+8. [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
+9. [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md)
 
 ## 5. Fast Mental Model
 

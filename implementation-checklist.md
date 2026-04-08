@@ -4,6 +4,8 @@
 > **TL;DR**
 > This is the shortest implementation-oriented checklist for building the `acmed` MVP from the design documents in this folder.
 
+Use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md) to decide what to build first and what to delay to later iterations.
+
 ## 1. Core Domain
 
 - [ ] Define typed config models.
@@ -64,9 +66,12 @@
 - [ ] Broker API tests.
 - [ ] Worker happy-path and denial-path tests.
 - [ ] Artifact and audit tests.
+- [ ] `pytest` is configured as the canonical Python test runner.
+- [ ] ACME integration tests run against Pebble.
 - [ ] ACME protocol tests for the documented supported feature set.
 - [ ] Real-client smoke test with `certbot`.
 - [ ] Real-client smoke test with `acme.sh`.
+- [ ] Optional Let’s Encrypt staging verification is documented separately from the default test flow.
 
 ## 9. Documentation
 
@@ -82,3 +87,11 @@
 - [ ] Security defaults are enforced.
 - [ ] ACME behavior matches the documented supported feature set.
 - [ ] `certbot` and `acme.sh` smoke tests pass.
+
+## 11. Authoritative References
+
+- [ ] Architecture decisions stay aligned with [`architecture.md`](/workspaces/cfg-pi-wizzy/local/acmed/architecture.md).
+- [ ] Order lifecycle, schema, storage, and config stay aligned with [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md).
+- [ ] Security and runtime behavior stay aligned with [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
+- [ ] Delivery sequencing stays aligned with [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md).
+- [ ] ACME-visible behavior stays aligned with [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md).

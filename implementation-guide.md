@@ -12,6 +12,8 @@ For a shorter execution-focused version, use [`implementation-checklist.md`](/wo
 
 For ACME client smoke-test examples and compatibility notes, use [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md).
 
+For the intended delivery style and iteration boundaries, use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md).
+
 ## 2. Implementation Priorities
 
 The code generation effort should optimize for:
@@ -138,6 +140,22 @@ Implement:
 Deliverable:
 
 - the adapter interoperates with common clients such as `certbot` and `acme.sh` for the supported feature set without redefining the core broker model
+
+## 3.1 Required Test Stack
+
+Use:
+
+- `pytest` as the required Python test runner
+- fast local tests for unit and service behavior
+- Pebble as the primary local ACME integration test server
+- `certbot` and `acme.sh` for real-client smoke tests
+- Let’s Encrypt staging only as optional external verification, not as the default automated dependency
+
+Why:
+
+- `pytest` gives a standard, scriptable Python test entry point
+- Pebble is specifically intended for CI and development testing of ACME behavior
+- Let’s Encrypt staging is useful, but it is external and less stable for routine automated testing
 
 ## 4. Recommended Lean Package Responsibilities
 
@@ -311,7 +329,25 @@ Documentation-oriented checks should also verify:
 - public functions and methods are typed
 - public classes and methods include docstrings
 
-Prefer realistic service-level tests over excessive mocking.
+Testing strategy:
+
+- use `pytest` as the canonical runner for all Python tests
+- keep most tests local and deterministic
+- prefer realistic service-level tests over excessive mocking
+- run ACME integration tests primarily against Pebble
+- use real-client smoke tests with `certbot` and `acme.sh` against the local ACME test environment first
+- use Let’s Encrypt staging only for optional compatibility verification, pre-release confidence checks, or manual validation
+
+Suggested test layers:
+
+- unit or service tests:
+  broker logic, state machine, normalization, validation, policy evaluation
+- integration tests:
+  SQLite persistence, worker flow, artifact writing, ACME protocol behavior against Pebble
+- real-client smoke tests:
+  `certbot` and `acme.sh` against the documented supported feature set
+- optional external verification:
+  Let’s Encrypt staging when appropriate and when the environment supports it
 
 Operational and security-oriented test expectations should stay aligned with [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
 
@@ -321,6 +357,7 @@ Generate at least:
 
 - package-level `README` or top-level project `README`
 - example YAML configuration
+- developer testing notes that explain local `pytest`, Pebble integration tests, and optional staging verification
 - developer notes describing how to run the API and worker
 - limitations and next-step notes for incomplete integrations
 - coding standards documentation that states banner, typing, and docstring requirements

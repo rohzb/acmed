@@ -19,6 +19,15 @@ Use this document for:
 - do not claim compatibility with a named client unless that client has been tested
 - keep the documented supported feature set synchronized with the real implementation
 
+Preferred testing environments:
+
+- use Pebble as the default local ACME test server for automated integration and smoke tests
+- use Let’s Encrypt staging only as optional external verification
+
+Pebble setup assumption:
+
+- the local ACME test environment should expose a normal ACME directory URL shape so `certbot` and `acme.sh` can be pointed at it the same way they would be pointed at a real ACME server
+
 ## 3. Client Smoke-Test Examples
 
 These examples are illustrative smoke-test targets, not production runbooks.
@@ -62,9 +71,23 @@ Also validate:
 - unsupported features are not advertised
 - wildcard behavior matches the documented supported challenge set
 
-## 5. References
+## 5. Staging Verification Notes
+
+Let’s Encrypt staging can be useful for additional confidence because it behaves like a real external ACME environment, but it should not be the default automated dependency.
+
+Use staging when:
+
+- preparing for release
+- confirming behavior beyond the local Pebble environment
+- manually checking interoperability in a more realistic network setting
+
+Do not make normal automated test runs depend on staging availability.
+
+## 6. References
 
 - [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
 - RFC 8555: https://datatracker.ietf.org/doc/html/rfc8555
 - Certbot usage docs: https://eff-certbot.readthedocs.io/en/latest/using.html
 - acme.sh server parameter notes: https://github-wiki-see.page/m/acmesh-official/acme.sh/wiki/Server
+- Let’s Encrypt staging environment: https://letsencrypt.org/docs/staging-environment/
+- Pebble: https://github.com/letsencrypt/pebble
