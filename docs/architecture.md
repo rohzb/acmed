@@ -115,6 +115,16 @@ src/acmed/
 
 Split files only after they become materially too large.
 
+`main.py` should act as the broker-first runtime entrypoint:
+
+- load configuration
+- initialize storage
+- start the worker loop
+- construct the HTTP application
+- expose the broker API, admin inspection endpoints, and health endpoints from one service process for the MVP
+
+Do not turn `main.py` into a framework-heavy bootstrap layer in the broker-first milestone.
+
 ## 5. Core Flow
 
 ```mermaid

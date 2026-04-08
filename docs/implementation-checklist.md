@@ -32,6 +32,7 @@ Use [`incremental-delivery.md`](./incremental-delivery.md) to decide what to bui
 - [ ] Add `POST /api/v1/orders`.
 - [ ] Add `GET /api/v1/orders/<order_id>`.
 - [ ] Add `GET /api/v1/orders`.
+- [ ] Keep broker and admin order-list responses minimal and newest-first by default.
 - [ ] Enforce requester authentication and order access control.
 
 - [ ] Enforce TLS outside explicit local development mode.
@@ -83,6 +84,7 @@ Use [`incremental-delivery.md`](./incremental-delivery.md) to decide what to bui
 - [ ] Keep banners, type hints, and docstrings in generated code.
 - [ ] Provide a top-level README.
 - [ ] Provide example configuration.
+- [ ] Document the broker-native request and response shape for `POST /api/v1/orders` and `GET /api/v1/orders/<order_id>`.
 - [ ] Keep ACME-visible behavior documented in [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 9. MVP Done

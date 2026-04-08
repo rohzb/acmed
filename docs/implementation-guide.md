@@ -92,6 +92,8 @@ Implement:
 - broker API routes
 - admin inspection routes limited to `GET /api/v1/admin/orders`, `GET /api/v1/admin/orders/<order_id>`, and `GET /api/v1/admin/audit-events/<order_id>`
 - health routes limited to `GET /health/live` and `GET /health/ready`
+- a compact broker-native request and response schema for `POST /api/v1/orders` and `GET /api/v1/orders/<order_id>`
+- a minimal response contract for `GET /api/v1/orders` and `GET /api/v1/admin/orders`
 - request and response schemas
 - identity extraction from API token or mTLS metadata
 - HTTPS or deployment-time TLS expectations
@@ -180,6 +182,10 @@ Why:
 | `issuers/` | Certificate issuance implementations |
 
 Split these files only after they become materially harder to read or maintain.
+
+Entrypoint responsibility:
+
+- `main.py` should load config, initialize storage, start the worker loop, and serve the HTTP application for the broker-first MVP
 
 ## 5. Design Rules for Generated Code
 
@@ -323,6 +329,7 @@ For the broker-first milestone, add tests for:
 - denied order handling
 - artifact storage writes
 - broker API create and read endpoints
+- broker and admin order-list response shape
 - worker claim acquisition and expired-claim recovery
 - retryable versus terminal failure classification
 - retry exhaustion behavior
@@ -383,7 +390,7 @@ Operational and security-oriented test expectations should stay aligned with [`s
 
 Generate at least:
 
-- package-level `README` or top-level project `README`
+- one top-level project `README` for the generated codebase
 - example YAML configuration
 - developer testing notes that explain local `pytest`, Pebble integration tests, and optional staging verification
 - developer notes describing how to run the API and worker
@@ -393,6 +400,7 @@ Generate at least:
 - a security note that documents default protections, threat assumptions, and operator responsibilities
 - a short admin API note that lists the MVP admin-only endpoints and their read-only intent
 - a short health-endpoint note that defines the MVP liveness and readiness behavior
+- a short broker API note that defines create, read, and list response shapes
 - an ACME compatibility note that lists supported endpoints, challenge types, and known client-facing limitations
 - the authoritative ACME API reference in [`acme-api-reference.md`](./acme-api-reference.md)
 - explicit notes on ACME identifier support, ownership rules, error behavior, EAB posture, and account-orders behavior

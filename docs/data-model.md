@@ -67,6 +67,13 @@ Field semantics for the broker-first MVP:
 - `csr_source`: states whether the request supplied a CSR or expects the service to generate key material and CSR; for the broker-first milestone, prefer a small explicit set such as `client_provided` and `service_generated`
 - `dedupe_key`: stable key derived from the normalized requester identity, normalized identifiers, issuer choice, and CSR/key mode so duplicate create requests can be recognized deterministically
 
+Idempotency relationship:
+
+- if the client supplies `idempotency_key`, treat it as an additional request-level idempotency signal for create-order handling
+- `dedupe_key` remains the server-side canonical deduplication value used to recognize semantically equivalent orders
+- do not expose `dedupe_key` as a client-controlled field
+- do not require `idempotency_key` for the broker-first milestone
+
 Do not turn these fields into large plugin-style registries or open-ended free-form values in the broker-first milestone unless a later iteration proves the need.
 
 ### Authorization decision
@@ -401,3 +408,102 @@ policies:
 ```
 
 When the implementation reaches the ACME iteration, add a second example or environment-specific override that enables ACME, Pebble-oriented integration settings, and any supported challenge-provider configuration. Do not let the first example imply that wildcard issuance, external ACME backends, or production Let’s Encrypt integration are part of the initial milestone.
+
+## 6. Broker-Native API Shape
+
+For the broker-first milestone, keep the broker API contract small and explicit.
+
+### Create order request
+
+`POST /api/v1/orders` should accept only client-supplied fields.
+
+Recommended request fields:
+
+- `dns_names`
+- `common_name` when needed by policy or issuer behavior
+- `issuer_name` when the client may select from allowed policy options; otherwise derive it from policy
+- `csr_pem` only when `csr_source` is `client_provided`
+- `idempotency_key` when client-driven request deduplication is supported
+
+Do not require clients to supply internal or computed fields such as:
+
+- `status`
+- `request_source`
+- `private_key_policy`
+- `csr_source`
+- `dedupe_key`
+- `claimed_by`
+- `claimed_at`
+- `claim_expires_at`
+- `retry_count`
+- `max_retries`
+- `created_at`
+- `updated_at`
+- `expires_at`
+
+### Create order response
+
+`POST /api/v1/orders` should return a compact broker-native order view.
+
+Recommended response fields:
+
+- `order_id`
+- `status`
+- `dns_names`
+- `common_name`
+- `issuer_name`
+- `created_at`
+- `expires_at`
+
+### Read order response
+
+`GET /api/v1/orders/<order_id>` should return the broker-native order view plus operational state that is safe for the requester to see.
+
+Recommended response fields:
+
+- `order_id`
+- `status`
+- `dns_names`
+- `common_name`
+- `issuer_name`
+- `created_at`
+- `updated_at`
+- `expires_at`
+- `error_message` when the order is failed or denied
+- artifact references only when the requester is allowed to retrieve them
+
+Artifact reference shape should stay minimal. Prefer:
+
+- logical artifact names such as `certificate`, `chain`, `fullchain`
+- stable API-relative download paths or artifact ids
+- no raw filesystem paths in requester-facing responses
+
+Do not expose internal worker-claim fields, raw audit metadata, raw filesystem paths, or secret-bearing artifact details through the broker-first requester-facing order API.
+
+### List orders response
+
+`GET /api/v1/orders` should return a requester-scoped list of the caller's own orders.
+
+Recommended response shape:
+
+- `orders`: array of compact broker-native order views
+
+Broker-first list rules:
+
+- default ordering should be newest first by `created_at`
+- keep the first milestone simple: omit pagination, filtering, and sorting controls unless a real slice requires them
+- do not expose other requesters' orders through this endpoint
+
+### Admin list response
+
+`GET /api/v1/admin/orders` should return an administrative list of orders for operational inspection.
+
+Recommended response shape:
+
+- `orders`: array of compact broker-native order views
+
+Admin list rules:
+
+- default ordering should be newest first by `created_at`
+- include `requester_id` in the admin list view
+- keep the first milestone simple: omit pagination, filtering, and sorting controls unless a real slice requires them
