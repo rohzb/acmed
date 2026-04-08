@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> This document collects practical compatibility notes and smoke-test examples for `certbot` and `acme.sh`. The protocol contract itself lives in [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md).
+> This document collects practical compatibility notes and smoke-test examples for `certbot` and `acme.sh`. The protocol contract itself lives in [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 1. Purpose
 
@@ -85,7 +85,7 @@ Do not make normal automated test runs depend on staging availability.
 
 ## 6. References
 
-- [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
+- [`acme-api-reference.md`](./acme-api-reference.md)
 - RFC 8555: https://datatracker.ietf.org/doc/html/rfc8555
 - Certbot usage docs: https://eff-certbot.readthedocs.io/en/latest/using.html
 - acme.sh server parameter notes: https://github-wiki-see.page/m/acmesh-official/acme.sh/wiki/Server

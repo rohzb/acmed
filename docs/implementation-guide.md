@@ -8,11 +8,11 @@
 
 Use this document as the implementation instruction set for generating the initial `acmed` codebase. It turns the project brief and architecture into an implementation order, package plan, configuration contract, testing plan, and acceptance checklist.
 
-For a shorter execution-focused version, use [`implementation-checklist.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-checklist.md).
+For a shorter execution-focused version, use [`implementation-checklist.md`](./implementation-checklist.md).
 
-For ACME client smoke-test examples and compatibility notes, use [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md).
+For ACME client smoke-test examples and compatibility notes, use [`acme-compatibility.md`](./acme-compatibility.md).
 
-For the intended delivery style and iteration boundaries, use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md).
+For the intended delivery style and iteration boundaries, use [`incremental-delivery.md`](./incremental-delivery.md).
 
 ## 2. Implementation Priorities
 
@@ -129,7 +129,7 @@ Deliverable:
 
 Implement:
 
-- the ACME resources defined in [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
+- the ACME resources defined in [`acme-api-reference.md`](./acme-api-reference.md)
 - adapter-local models
 - RFC 8555-compatible request and response handling for the supported feature set
 - explicit identifier support rules, ownership checks, and ACME-compatible error handling
@@ -199,9 +199,9 @@ Split these files only after they become materially harder to read or maintain.
 
 ## 6. Runtime Contracts
 
-For order lifecycle, schema shape, storage layout, and configuration examples, see [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md).
+For order lifecycle, schema shape, storage layout, and configuration examples, see [`data-model.md`](./data-model.md).
 
-For security baseline, runtime topology, startup behavior, and failure handling, see [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
+For security baseline, runtime topology, startup behavior, and failure handling, see [`security-operations.md`](./security-operations.md).
 
 ### Order creation service
 
@@ -258,7 +258,7 @@ Security responsibilities:
 
 ## 7. Configuration Requirements
 
-The canonical configuration example lives in [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md).
+The canonical configuration example lives in [`data-model.md`](./data-model.md).
 
 The initial config model should include:
 
@@ -349,7 +349,7 @@ Suggested test layers:
 - optional external verification:
   Let’s Encrypt staging when appropriate and when the environment supports it
 
-Operational and security-oriented test expectations should stay aligned with [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
+Operational and security-oriented test expectations should stay aligned with [`security-operations.md`](./security-operations.md).
 
 ## 9. Documentation Requirements
 
@@ -364,7 +364,7 @@ Generate at least:
 - a short architecture note that explains why the MVP intentionally avoids extra moving parts
 - a security note that documents default protections, threat assumptions, and operator responsibilities
 - an ACME compatibility note that lists supported endpoints, challenge types, and known client-facing limitations
-- the authoritative ACME API reference in [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
+- the authoritative ACME API reference in [`acme-api-reference.md`](./acme-api-reference.md)
 - explicit notes on ACME identifier support, ownership rules, error behavior, EAB posture, and account-orders behavior
 
 Documentation should emphasize:

@@ -156,10 +156,10 @@ The ACME adapter must preserve ACME-visible behavior, but the broker core must s
 
 ## 7. Where Other Details Live
 
-- Order lifecycle, schema, storage, and config shape: [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md)
-- Security rules, runtime topology, and operational handling: [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md)
-- Delivery sequencing and iteration boundaries: [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md)
-- Build order, tests, and acceptance criteria: [`implementation-guide.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-guide.md)
-- Execution-oriented task sequence: [`implementation-checklist.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-checklist.md)
-- ACME-visible protocol behavior: [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md)
-- ACME client testing and compatibility notes: [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md)
+- Order lifecycle, schema, storage, and config shape: [`data-model.md`](./data-model.md)
+- Security rules, runtime topology, and operational handling: [`security-operations.md`](./security-operations.md)
+- Delivery sequencing and iteration boundaries: [`incremental-delivery.md`](./incremental-delivery.md)
+- Build order, tests, and acceptance criteria: [`implementation-guide.md`](./implementation-guide.md)
+- Execution-oriented task sequence: [`implementation-checklist.md`](./implementation-checklist.md)
+- ACME-visible protocol behavior: [`acme-api-reference.md`](./acme-api-reference.md)
+- ACME client testing and compatibility notes: [`acme-compatibility.md`](./acme-compatibility.md)

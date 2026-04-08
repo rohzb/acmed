@@ -4,7 +4,7 @@
 > **TL;DR**
 > Build `acmed` as a sequence of small, working, testable slices. Do not try to implement the full end-state architecture in the first pass.
 
-For day-to-day implementation tracking, use [`implementation-checklist.md`](/workspaces/cfg-pi-wizzy/local/acmed/implementation-checklist.md) alongside this document.
+For day-to-day implementation tracking, use [`implementation-checklist.md`](./implementation-checklist.md) alongside this document.
 
 ## 1. Purpose
 
@@ -193,7 +193,7 @@ Include:
 
 Use:
 
-- [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md) as the protocol authority
+- [`acme-api-reference.md`](./acme-api-reference.md) as the protocol authority
 
 Do not include yet unless truly supported:
 

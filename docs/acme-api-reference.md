@@ -542,7 +542,7 @@ Typical compatible client flow:
 10. `POST-as-GET` order until it becomes `valid`
 11. `POST-as-GET` certificate resource
 
-See [`acme-compatibility.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-compatibility.md) for client smoke-test examples and compatibility-oriented validation notes.
+See [`acme-compatibility.md`](./acme-compatibility.md) for client smoke-test examples and compatibility-oriented validation notes.
 
 ## 11. Compatibility Boundaries
 

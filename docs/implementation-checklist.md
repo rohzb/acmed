@@ -4,7 +4,7 @@
 > **TL;DR**
 > This is the shortest implementation-oriented checklist for building the `acmed` MVP from the design documents in this folder.
 
-Use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md) to decide what to build first and what to delay to later iterations.
+Use [`incremental-delivery.md`](./incremental-delivery.md) to decide what to build first and what to delay to later iterations.
 
 ## 1. Core Domain
 
@@ -54,7 +54,7 @@ Use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental
 
 ## 7. ACME Adapter
 
-- [ ] Implement the ACME resources defined in [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md).
+- [ ] Implement the ACME resources defined in [`acme-api-reference.md`](./acme-api-reference.md).
 - [ ] Keep ACME behavior protocol-correct and broker-internal behavior separate.
 - [ ] Enforce identifier support rules, ownership checks, and DNS normalization.
 - [ ] Advertise only the ACME features actually implemented.
@@ -78,7 +78,7 @@ Use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental
 - [ ] Keep banners, type hints, and docstrings in generated code.
 - [ ] Provide a top-level README.
 - [ ] Provide example configuration.
-- [ ] Keep ACME-visible behavior documented in [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md).
+- [ ] Keep ACME-visible behavior documented in [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 10. MVP Done
 
@@ -90,8 +90,8 @@ Use [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental
 
 ## 11. Authoritative References
 
-- [ ] Architecture decisions stay aligned with [`architecture.md`](/workspaces/cfg-pi-wizzy/local/acmed/architecture.md).
-- [ ] Order lifecycle, schema, storage, and config stay aligned with [`data-model.md`](/workspaces/cfg-pi-wizzy/local/acmed/data-model.md).
-- [ ] Security and runtime behavior stay aligned with [`security-operations.md`](/workspaces/cfg-pi-wizzy/local/acmed/security-operations.md).
-- [ ] Delivery sequencing stays aligned with [`incremental-delivery.md`](/workspaces/cfg-pi-wizzy/local/acmed/incremental-delivery.md).
-- [ ] ACME-visible behavior stays aligned with [`acme-api-reference.md`](/workspaces/cfg-pi-wizzy/local/acmed/acme-api-reference.md).
+- [ ] Architecture decisions stay aligned with [`architecture.md`](./architecture.md).
+- [ ] Order lifecycle, schema, storage, and config stay aligned with [`data-model.md`](./data-model.md).
+- [ ] Security and runtime behavior stay aligned with [`security-operations.md`](./security-operations.md).
+- [ ] Delivery sequencing stays aligned with [`incremental-delivery.md`](./incremental-delivery.md).
+- [ ] ACME-visible behavior stays aligned with [`acme-api-reference.md`](./acme-api-reference.md).
