@@ -2,11 +2,11 @@
 
 > [!TIP]
 > **TL;DR**
-> This document defines the runtime configuration shape, policy syntax, matcher semantics, and policy-selection rules.
+> This document defines the runtime configuration shape, issuer-profile model, policy syntax, matcher semantics, and policy-selection rules.
 
-Use this document as the source of truth for YAML configuration, policy definitions, and policy matching behavior.
+Use this document as the source of truth for YAML configuration, policy definitions, issuer profiles, and policy matching behavior.
 
-Owns: configuration schema, identity and admin config, operational defaults, policy syntax, and policy-selection rules.
+Owns: configuration schema, identity and admin config, operational defaults, issuer-profile rules, policy syntax, and policy-selection rules.
 
 ## 1. Configuration Shape
 
@@ -14,8 +14,8 @@ Configuration examples should stay aligned with the documented delivery and test
 
 - treat ACME as the primary external interface for the MVP
 - use local, deterministic settings for routine automated testing
-- prefer Pebble-oriented ACME settings for local integration runs
-- treat Let’s Encrypt staging as optional external verification rather than the default test target
+- prefer Pebble-oriented settings for local issuer integration runs
+- treat external public CA staging as optional verification rather than the default test target
 
 ```yaml
 server:
@@ -27,9 +27,9 @@ identity:
   api_tokens:
     enabled: true
     tokens:
-      - token_id: lab-client-1
+      - token_id: app-host-1
         subject: host1.lab.example.org
-        secret_env: ACMED_TOKEN_LAB_CLIENT_1
+        secret_env: ACMED_TOKEN_APP_HOST_1
         roles:
           - requester
   mtls:
@@ -55,13 +55,6 @@ orders:
 acme:
   enabled: true
   directory_path: /acme/directory
-  supported_challenges:
-    - http-01
-    - dns-01
-  external_account_binding:
-    enabled: true
-  revoke_cert_enabled: false
-  key_change_enabled: false
 
 storage:
   sqlite_path: data/acmed.db
@@ -72,12 +65,41 @@ workers:
   max_parallel_orders: 4
 
 issuers:
+  - name: pebble-acmesh-dns
+    type: acme_sh
+    executable: /usr/bin/acme.sh
+    ca_directory_url: https://pebble:14000/dir
+    challenge_mode: dns-01
+    plugin_name: dns_cf
+    credential_env:
+      - CF_Token
+    capability_scope:
+      - syntax: suffix
+        value: .lab.example.org
+
+  - name: le-certbot-dns
+    type: certbot
+    executable: /usr/bin/certbot
+    ca_directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
+    challenge_mode: dns-01
+    plugin_name: dns-route53
+    credential_env:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    capability_scope:
+      - syntax: suffix
+        value: .example.org
+
   - name: mock
     type: mock
 
-challenge_providers:
-  - name: no-challenge
-    type: no_challenge
+proof_handlers:
+  - name: no-proof
+    type: none
+
+  - name: inventory-assertion
+    type: inventory_assertion
+    inventory_source: local
 
 authorizers:
   - name: subnet-lab
@@ -86,7 +108,7 @@ authorizers:
       - 10.20.30.0/24
 
 policies:
-  - name: lab-default-policy
+  - name: lab-hosts
     requester_match:
       authorizers:
         - subnet-lab
@@ -95,32 +117,40 @@ policies:
         value: host1.lab.example.org
       - syntax: exact
         value: host2.lab.example.org
-    issuer: mock
-    challenge: no-challenge
+    allowed_issuers:
+      - pebble-acmesh-dns
+      - mock
+    proof_handler: inventory-assertion
+
+  - name: shared-zone-automation
+    requester_match:
+      authorizers:
+        - subnet-lab
+    allowed_domains:
+      - syntax: suffix
+        value: .apps.lab.example.org
+    allowed_issuers:
+      - pebble-acmesh-dns
+    proof_handler: no-proof
 ```
 
-This example is an ACME-enabled MVP baseline. It keeps the shared runtime small while still reflecting the primary ACME-facing product surface.
+This example shows the intended trust split:
 
-The same runtime may still expose the broker API for internal or operational use, but that interface remains secondary to the documented ACME contract.
+- internal requesters authenticate to `acmed`
+- policies decide which names they may request
+- policies decide which issuer profiles they may invoke
+- issuer profiles hold the broader validation plugins and credentials needed to satisfy the real external challenge flow
 
-The `challenge_providers` section in this example represents internal helper paths such as broker-native challenge execution. ACME `http-01` and `dns-01` remain client-visible protocol flows defined by [`acme-api-reference.md`](./acme-api-reference.md) rather than interchangeable broker challenge plugins.
-
-Add environment-specific overrides when needed for Pebble integration, staging verification, or later optional features. Do not let this baseline imply that wildcard issuance, external ACME backends, or production Let’s Encrypt integration are part of the initial milestone.
-
-For the ACME MVP, the enabled ACME configuration should:
-
-- advertise both `http-01` and `dns-01`
-- require External Account Binding for account creation
-- keep wildcard support disabled unless the full `dns-01` wildcard path is implemented end to end
+The same runtime may later expose a broker-native API, but that does not change the core policy model and should not drive the first implementation.
 
 ### 1.1 Interface boundary in configuration
 
-Keep the configuration split conceptually even when one process hosts both surfaces:
+Keep the configuration split conceptually even when one process hosts multiple surfaces:
 
-- `acme.*` config controls the primary ACME-facing behavior
-- `identity.*` and `access.*` primarily control the optional broker API and admin surface
-- `authorizers`, `challenge_providers`, `issuers`, `policies`, `storage`, and `workers` belong to the shared broker-style core
-- do not model ACME challenge types as interchangeable broker `challenge_providers`
+- `acme.*` controls the primary ACME-facing behavior
+- `identity.*` and `access.*` primarily control admin behavior and any later broker API
+- `issuers`, `proof_handlers`, `authorizers`, `policies`, `storage`, and `workers` belong to the shared broker-style core
+- do not model external CA challenge plugins as requester-facing policy features
 
 ### 1.2 Initial operational defaults
 
@@ -138,13 +168,14 @@ Treat these as explicit documented defaults rather than as placeholders.
 
 ### 1.3 Identity and admin configuration
 
-Broker API and admin identity rules:
+Broker, ACME enrollment, and admin identity rules:
 
-- support API-token authentication for the broker API and admin surface
+- support API-token authentication for the admin surface and any later broker API
 - treat each configured API token as one stable requester subject
 - resolve `requester_id` from the token's configured `subject`
 - read token secret material from an environment variable named by `secret_env` rather than from inline YAML secret text
 - reject startup if two enabled tokens resolve to the same `token_id` or same `subject`
+- if the ACME surface is enabled, use ACME account authentication and any documented enrollment rules for the client-facing ACME flow
 
 mTLS configuration rules:
 
@@ -159,7 +190,36 @@ Admin configuration rules:
 - require the authenticated subject to appear in `access.admin_subjects` before serving `/api/v1/admin/*`
 - do not derive admin privilege from policy matches or requested identifiers
 
-## 2. Policy Matcher Syntax
+## 2. Issuer Profiles
+
+An issuer profile describes a named external fulfillment path.
+
+Each issuer profile should declare:
+
+- the adapter type such as `acme_sh`, `certbot`, or `mock`
+- the fixed executable path when applicable
+- the target CA directory URL or equivalent endpoint configuration
+- the external validation mode such as `dns-01` or `http-01`
+- the external plugin name when one is required
+- the credential environment variables needed by that issuer
+- the broad capability scope that the issuer can technically validate
+
+Issuer-profile rules:
+
+- treat issuer profiles as privileged operational objects, not as requester-supplied plugin choices
+- keep executable paths explicit
+- keep credential sources outside YAML secret literals
+- record capability scope so operators can review the real blast radius of each issuer profile
+- reject startup if an issuer profile references an unsupported adapter type or missing executable path
+- reject startup if two issuer profiles share the same name
+
+Capability-scope meaning:
+
+- `capability_scope` describes what the issuer could technically validate with its configured credentials
+- policy still decides what a requester may actually request through that issuer
+- requester authorization must always be narrower than or equal to the selected policy, even when issuer capability is much broader
+
+## 3. Policy Matcher Syntax
 
 For the MVP and later extensions, `allowed_domains` entries should declare their matching syntax explicitly.
 
@@ -200,7 +260,6 @@ Initial runtime support:
 
 - `value` must begin with `.` such as `.lab.example.org`
 - a `suffix` entry matches the apex `lab.example.org` and any deeper subdomain under that suffix
-- a `suffix` entry is also the explicit policy form that authorizes wildcard request identifiers under that zone when wildcard issuance is otherwise allowed
 
 `regex` syntax rules:
 
@@ -233,26 +292,9 @@ Recommended use:
 - treat `regex` as an opt-in expert feature for later slices rather than a default policy-authoring tool
 - keep mixed-syntax policies rare unless they are materially simpler than multiple explicit policies
 
-Example mixed-syntax policy:
+## 4. Policy Selection
 
-```yaml
-policies:
-  - name: lab-general
-    requester_match:
-      authorizers:
-        - subnet-lab
-    allowed_domains:
-      - syntax: exact
-        value: gateway.lab.example.org
-      - syntax: suffix
-        value: .apps.lab.example.org
-    issuer: mock
-    challenge: no-challenge
-```
-
-## 3. Policy Selection
-
-### 3.1 Request Normalization And Identity
+### 4.1 Request Normalization And Identity
 
 Before persisting an order from any external interface:
 
@@ -264,11 +306,11 @@ Before persisting an order from any external interface:
 Requester identity rules for the MVP:
 
 - derive `requester_id` from the authenticated credential rather than from client-supplied request fields
-- for ACME requests, bind `requester_id` to the ACME account identity or equivalent stable account-key identifier
 - for broker API requests, bind `requester_id` to the token's configured subject or verified mTLS identity after any configured mapping step
+- if a later inbound ACME surface exists, bind `requester_id` to the ACME account identity or equivalent stable account-key identifier
 - never allow the requester to override `requester_id` in the request payload
 
-Identifier normalization rules apply the same way across both interfaces even when the authentication model differs.
+Identifier normalization rules apply the same way across all interfaces even when the authentication model differs.
 
 Client input mode rules:
 
@@ -278,51 +320,39 @@ Client input mode rules:
 - reject requests that include `csr_pem` but select a policy path that requires service-generated key material
 - reject requests that omit `csr_pem` when the selected policy path requires a client-provided CSR
 
-### 3.2 Policy Resolution
+### 4.2 Policy Resolution
 
 Policy resolution rules for the MVP:
 
 - if no policy matches the authenticated requester and requested identifiers, reject the request
 - if more than one policy matches but all selected runtime choices are identical, choose the most specific policy and record the selected policy name in audit metadata
-- if more than one policy matches and they disagree on issuer, challenge type, or key/CSR mode, fail closed and require configuration cleanup instead of guessing
+- if more than one policy matches and they disagree on issuer access, proof handling, or key/CSR mode, fail closed and require configuration cleanup instead of guessing
 - if the client supplies `issuer_name`, treat it as a constraint that must still be allowed by the selected policy rather than as an unrestricted override
 - require every requested identifier in a multi-name order to be allowed by the same selected policy
 
+Issuer-selection rules:
+
+- every policy must name one or more `allowed_issuers`
+- every policy must name exactly one `proof_handler`
+- the selected issuer must be one of the policy's `allowed_issuers`
+- startup validation should reject a policy that references an unknown issuer or proof handler
+- startup validation should reject a policy that expands requester access implicitly through an unknown default issuer
+
 Identifier-to-policy matching rules:
 
-- treat exact names, wildcard request identifiers, suffix entries, and, when enabled, regex entries as distinct forms during matching
+- treat exact names, suffix entries, and, when enabled, regex entries as distinct forms during matching
 - match request identifiers against policy entries only after request normalization
 - use the declared `syntax` field rather than inferring matcher behavior from the `value`
-- treat the `suffix` form as the explicit policy form that allows wildcard request identifiers under that zone
-- do not satisfy a wildcard request from a plain `exact` host entry
 - when a request contains multiple identifiers, evaluate each identifier independently and then require one policy to cover the full set
 
-Wildcard authorization rules for the MVP:
+### 4.3 Trust split between requesters and issuers
 
-- a requested wildcard identifier such as `*.lab.example.org` may be authorized only by a broader `suffix` entry such as `.lab.example.org`
-- an exact apex entry such as `lab.example.org` does not authorize `*.lab.example.org`
-- if ACME wildcard issuance is disabled, reject wildcard identifiers even if a broker policy pattern would otherwise match them
-- if wildcard issuance is enabled in a later slice, require `dns-01` for wildcard identifiers regardless of any broader challenge preference
+The central safety property is that issuer capability is not requester permission.
 
-Regex policy mode:
+Required rules:
 
-- do not include regex matching in the initial MVP
-- if regex matching is added later, require explicit configuration to enable it
-- allow regex matching only on policy entries that declare `syntax: regex`
-- restrict regex patterns to anchored full matches against normalized identifiers
-- reject regex flags, partial matches, and engine-specific extensions unless a later document explicitly allows them
-- reject regex patterns that fail validation or exceed defined complexity limits
-- keep regex-backed policies lower priority than exact matches unless a later document says otherwise
-
-Specificity rules for the MVP:
-
-- prefer exact identifier matches over broader domain patterns
-- prefer policies with narrower requester constraints over broader requester constraints
-- prefer policies that enumerate fewer allowed domains when both otherwise match the same request
-- if two matching policies remain tied after those checks, fail closed instead of relying on file order
-
-## 4. Related Documents
-
-For lifecycle, persistence, and storage behavior, use [`data-model.md`](./data-model.md).
-
-For the optional broker-native HTTP behavior, use [`broker-api-reference.md`](./broker-api-reference.md).
+- a broad DNS-capable issuer profile may exist even when most requesters may use only a narrow subset of names
+- do not infer requester permission from the issuer profile's `capability_scope`
+- do not expose issuer plugin details or issuer credentials in requester-facing APIs
+- keep policy review focused on the pair of `allowed_domains` and `allowed_issuers`
+- treat `no-proof` as a high-trust path that must be explicit and auditable

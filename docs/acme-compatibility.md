@@ -2,19 +2,20 @@
 
 > [!TIP]
 > **TL;DR**
-> This document collects practical compatibility notes and smoke-test examples for `certbot` and `acme.sh`. The protocol contract itself lives in [`acme-api-reference.md`](./acme-api-reference.md).
+> This document collects practical notes for `certbot` and `acme.sh` in two roles: as external issuer tools invoked by `acmed`, and as ACME clients for validating the primary ACME surface.
 
-Use this file for practical client validation notes, not as the normative ACME contract. For client-visible protocol rules, use [`acme-api-reference.md`](./acme-api-reference.md).
+Use this file for practical compatibility notes, not as the normative ACME contract. For client-visible ACME rules, use [`acme-api-reference.md`](./acme-api-reference.md).
 
-Owns: client smoke-test notes, interoperability reminders, and practical compatibility validation guidance.
+Owns: issuer-tool notes, ACME client smoke-test notes, interoperability reminders, and practical compatibility validation guidance.
 
 ## 1. Purpose
 
 Use this document for:
 
-- client-oriented smoke-test examples
+- issuer-tool validation notes
+- optional client-oriented smoke-test examples
 - compatibility validation notes
-- practical reminders about how `certbot` and `acme.sh` should interact with the ACME interface
+- practical reminders about how `certbot` and `acme.sh` fit into the overall design
 
 Do not use this document as the main protocol reference. It exists to validate and exercise the contract defined in [`acme-api-reference.md`](./acme-api-reference.md).
 
@@ -22,16 +23,16 @@ Do not use this document as the main protocol reference. It exists to validate a
 
 - point clients at the ACME directory URL
 - advertise only the ACME features actually implemented
-- do not claim compatibility with a named client unless that client has been tested
+- do not claim compatibility with a named client or issuer wrapper unless that path has been tested
 - keep the documented supported feature set synchronized with the real implementation
-- for the MVP, support both `http-01` and `dns-01`
-- for the MVP, require ACME External Account Binding for account creation and test clients with that enrollment flow
+- use Pebble or another deterministic CA for local external-issuer testing where possible
+- require the ACME surface to advertise only the ACME features truly implemented
 
 When this document and [`acme-api-reference.md`](./acme-api-reference.md) differ, treat the API reference as authoritative and use this file only for practical validation guidance.
 
 Preferred testing environments:
 
-- use Pebble as the default local ACME test server for automated integration and smoke tests
+- use Pebble as the default local ACME test server for automated issuer integration and ACME smoke tests
 - use Let’s Encrypt staging only as optional external verification
 
 Pebble setup assumption:
@@ -54,7 +55,7 @@ certbot certonly \
   -d example.org
 ```
 
-The real smoke test should also cover an `http-01` path, for example with a manual or test harness flow that provisions the token response material expected by the server.
+If the ACME surface documents `http-01` support, the real smoke test should cover an `http-01` path, for example with a manual or test harness flow that provisions the token response material expected by the server.
 
 ### acme.sh example
 
@@ -65,7 +66,7 @@ acme.sh --issue \
   -d example.org
 ```
 
-The real smoke test suite should include one `dns-01` issuance and one `http-01` issuance rather than treating one of the two challenge types as optional.
+The real smoke test suite should cover every challenge type the ACME surface advertises rather than assuming both `dns-01` and `http-01` are always in scope.
 
 The exact smoke-test command may vary by challenge method, but the implementation should support the normal directory-URL based client model.
 
@@ -83,7 +84,7 @@ For both `certbot` and `acme.sh`, validate at least:
 
 Also validate:
 
-- across the named-client smoke-test set, both `http-01` and `dns-01` challenge paths
+- across the named-client smoke-test set, every advertised ACME challenge path
 - failures are reported in ACME-compatible ways
 - unsupported features are not advertised
 - wildcard behavior matches the documented supported challenge set

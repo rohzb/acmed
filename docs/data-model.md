@@ -28,7 +28,7 @@ Recommended transitions:
 | `pending` | `authorizing` | Worker begins policy evaluation |
 | `authorizing` | `authorized` | Policy evaluation succeeds |
 | `authorizing` | `denied` | Policy evaluation rejects the request |
-| `authorized` | `issuing` | Challenge handling completed or was explicitly skipped |
+| `authorized` | `issuing` | Required internal proof completed or was explicitly skipped |
 | `issuing` | `issued` | Issuer returns a successful result |
 | `issuing` | `failed` | Issuance fails and no retry remains |
 | `pending` | `expired` | Request timed out before processing |
@@ -39,7 +39,7 @@ Terminal states for v1 should be `issued`, `failed`, `denied`, and `expired`.
 
 ## 2. Core Records
 
-The order record is the shared core object for both external interfaces. ACME-specific records should point at that shared order model rather than replace it.
+The order record is the shared core object for every inbound interface. Optional ACME-specific records should point at that shared order model rather than replace it.
 
 ### Order
 
@@ -52,7 +52,7 @@ Minimum fields:
 - `dns_names`
 - `common_name`
 - `issuer_name`
-- `challenge_type`
+- `proof_handler_name`
 - `private_key_policy`
 - `csr_source`
 - `not_before`
@@ -68,7 +68,8 @@ Minimum fields:
 
 Field semantics for the MVP:
 
-- `request_source`: identifies which interface created the order; use explicit values such as `acme` and `broker_api` so the primary ACME surface and the optional broker API can share one core model
+- `request_source`: identifies which interface created the order; use explicit values such as `acme` and, when added later, `broker_api`
+- `proof_handler_name`: records the selected internal proof path, not the external CA challenge plugin used by the issuer
 - `private_key_policy`: states whether key material is service-generated, supplied by CSR, or not stored; for the MVP, prefer a small explicit set such as `service_generated` and `csr_only`
 - `csr_source`: states whether the request supplied a CSR or expects the service to generate key material and CSR; for the MVP, prefer a small explicit set such as `client_provided` and `service_generated`
 - `dedupe_key`: stable key derived from the normalized requester identity, normalized identifiers, issuer choice, and CSR/key mode so duplicate create requests can be recognized deterministically
@@ -166,7 +167,7 @@ Expiration rules for the MVP:
 Retry classification rules for the MVP:
 
 - classify policy denial, malformed requests, configuration errors, and CSR mismatch as non-retryable
-- classify transient SQLite lock contention, bounded DNS propagation waits, and bounded external issuer timeouts as retryable only when the same attempt may succeed without changing the order payload
+- classify transient SQLite lock contention, bounded external validation propagation waits, and bounded external issuer timeouts as retryable only when the same attempt may succeed without changing the order payload
 - persist retry classification in audit metadata so operators can explain why a failed order was or was not re-queued
 - do not retry after any failure that could indicate unsafe or ambiguous authorization state
 
@@ -390,4 +391,4 @@ For the broker configuration shape and policy matching rules, use [`policy-confi
 
 For ACME-visible object and status behavior, use [`acme-api-reference.md`](./acme-api-reference.md).
 
-For the optional broker-native HTTP contract, use [`broker-api-reference.md`](./broker-api-reference.md).
+For the later broker-native HTTP contract, use [`broker-api-reference.md`](./broker-api-reference.md).

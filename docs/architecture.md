@@ -2,54 +2,72 @@
 
 > [!TIP]
 > **TL;DR**
-> `acmed` should be implemented as a modular monolith: an ACME-facing service around a broker-style core, a worker loop, small plugin boundaries, and an optional broker API for internal use.
+> `acmed` should be implemented as a modular monolith: an ACME-facing service around a thin broker core, a worker loop, explicit authorizer and proof boundaries, and issuer adapters that wrap external tools such as `acme.sh` and `certbot`.
 
 Use this document as the source of truth for system shape, component boundaries, and package layout.
 
-Owns: system shape, component boundaries, ACME-versus-broker separation, and package layout.
+Owns: system shape, component boundaries, broker-versus-issuer separation, and package layout.
 
 ## 1. Objective
 
-Build a certificate issuance service that centralizes policy decisions while staying small, fast, and understandable.
+Build a certificate issuance broker that centralizes requester policy while staying small, fast, and understandable.
 
 The architecture should optimize for:
 
-- truthful ACME compatibility for the documented feature set
+- clear separation between internal requester permissions and external issuer power
 - minimal code volume
 - low runtime overhead
-- clear failure handling
+- safe delegation to external tooling
 - straightforward local development
-- a core model that does not collapse into raw ACME protocol mechanics
+- a core model that describes brokering and orchestration rather than raw ACME protocol mechanics
 
 ## 2. Scope
 
 In scope:
 
-- ACME-compatible certificate ordering for the documented supported feature set
+- brokered certificate ordering for internal clients
 - asynchronous processing
-- pluggable authorizers, challenge providers, and issuers
+- pluggable authorizers, proof handlers, and issuers
+- real external issuer integrations such as `acme.sh` and `certbot`
 - persistent runtime state
 - auditability
-- broker-native certificate ordering as a secondary or optional interface
+- ACME-compatible inbound interface as the primary surface
+- optional broker-native interface as a later extension
 
 Out of scope for v1:
 
-- full RFC-complete ACME support
+- implementing a full certificate authority
+- mirroring every external issuer capability directly to requesters
 - clustering or distributed queues
 - UI
 - advanced multi-tenant isolation
 
 ## 3. Architecture Principles
 
-### 3.1 ACME-first at the edge, broker-style in the core
+### 3.1 ACME-first edge, broker-style core
 
-The external product surface should be ACME-first, but the internal domain model should still describe certificate brokering rather than mirroring ACME resources one-to-one.
+The external product surface should be ACME-first, but the internal domain model should still describe certificate brokering:
 
-### 3.2 Authorization and challenge validation are different
+- who requested a certificate
+- what names were requested
+- what policy allowed or denied the request
+- what internal proof was required
+- which issuer profile may be used
+- what artifact and audit outputs were produced
 
-Internal policy answers whether a requester may ask for a certificate. Challenge validation answers whether an identifier has been proven in a particular issuance flow.
+External CA challenge execution belongs inside issuer adapters rather than inside the broker core.
 
-### 3.3 Simplicity-first implementation
+### 3.2 Authorization, internal proof, and external validation are different
+
+Use three separate concepts:
+
+- authorization: whether a requester may ask for a certificate at all
+- internal proof: optional local evidence or approval required before invoking a privileged issuer
+- external validation: the public CA challenge flow carried out by the issuer adapter against the external CA
+
+Do not collapse these into one generic "challenge" abstraction.
+
+### 3.3 Thin broker, not a second CA
 
 For the MVP, prefer:
 
@@ -57,17 +75,14 @@ For the MVP, prefer:
 - SQLite-backed work coordination
 - a polling worker loop
 - direct function calls over orchestration frameworks
+- subprocess wrappers around existing issuer tools instead of reimplementing their ecosystems
 - a few coarse-grained modules over many tiny packages
 
-### 3.4 Security-by-default
+### 3.4 Centralize broad privileges
 
-Basic safety must exist in the first implementation, especially for:
+Broad external validation credentials such as zone-wide DNS API access should live only with the issuer profile that needs them.
 
-- transport security
-- requester identity
-- secret handling
-- subprocess isolation
-- audit redaction
+Internal requesters should not receive those credentials, plugin choices, or unrestricted access to invoke them. Policy must mediate all access to privileged issuers.
 
 ## 4. System Overview
 
@@ -75,26 +90,32 @@ Basic safety must exist in the first implementation, especially for:
 
 | Component | Responsibility |
 |----------|-----------------|
-| ACME API | Accept ACME requests and return ACME-visible resources and errors |
+| ACME API | Accept client requests and return ACME-visible resources and errors |
+| Broker API | Optional later interface for internal integrations and operations |
 | Broker core | Normalize requests, apply policy, and drive state transitions |
-| Worker loop | Poll for work and execute authorization, challenge, and issuance steps |
-| Plugin set | Authorizers, challenge providers, and issuers |
+| Worker loop | Poll for work and execute authorization, proof, and issuance steps |
+| Authorizers | Decide whether the authenticated requester may ask for the requested names |
+| Proof handlers | Perform optional local proof or approval steps before issuer invocation |
+| Issuers | Wrap external tooling such as `acme.sh`, `certbot`, or a mock issuer |
 | Storage | SQLite runtime state plus filesystem artifacts |
-| Broker API | Expose a secondary broker-native contract for internal integrations when needed |
+| Audit log | Record security-relevant actions and outcomes |
 
 ### 4.2 Context Diagram
 
 ```mermaid
 graph TD
   ACMEClient[ACME client] --> ACME[ACME API]
-  Client[Internal client] --> BrokerAPI[Broker API]
+  Client[Optional internal client] --> BrokerAPI[Broker API]
   BrokerAPI --> Core[Broker core]
   ACME --> Core
   Core --> DB[(SQLite)]
   Core --> Worker[Worker loop]
   Worker --> Authorizers[Authorizers]
-  Worker --> Challenges[Challenge providers]
-  Worker --> Issuers[Issuers]
+  Worker --> Proofs[Proof handlers]
+  Worker --> Issuers[Issuer adapters]
+  Issuers --> Tools[acme.sh / certbot / mock]
+  Tools --> ExtCA[External CA]
+  Tools --> ExtAuth[DNS or HTTP validation plugins]
   Worker --> Artifacts[Artifact storage]
   Worker --> Audit[Audit log]
 ```
@@ -114,7 +135,7 @@ src/acmed/
   worker.py
   audit.py
   issuers/
-  challenges/
+  proofs/
   authorizers/
 ```
 
@@ -128,51 +149,60 @@ For per-file responsibilities and implementation-oriented rules, use [`implement
 - initialize storage
 - start the worker loop
 - construct the HTTP application
-- expose the ACME routes, admin inspection endpoints, and health endpoints from one service process for the MVP
-- mount the broker API in that same service process only when the secondary broker-native interface is enabled or required by the slice
+- expose ACME routes, admin inspection endpoints, and health endpoints from one service process for the MVP
+- mount a broker-native API only when that secondary interface is enabled in a later slice
 
-Do not turn `main.py` into a framework-heavy bootstrap layer in the ACME-first milestone.
+Do not turn `main.py` into a framework-heavy bootstrap layer in the early milestone.
 
 ## 5. Core Flow
 
-The same broker-style core flow should serve both the ACME interface and the optional broker API. ACME-specific resources such as accounts, authorizations, and challenges are protocol-facing projections over this shared workflow rather than a separate issuance engine.
+The same broker-style core flow should serve the ACME interface first and any later secondary interface without reshaping internals.
 
 ```mermaid
 sequenceDiagram
-  participant C as Client
-  participant A as API
+  participant C as ACME client
+  participant A as ACME API
   participant B as Broker core
   participant D as SQLite
   participant W as Worker
   participant Z as Authorizer
-  participant P as Challenge provider
-  participant I as Issuer
+  participant P as Proof handler
+  participant I as Issuer adapter
+  participant T as External tool
+  participant E as External CA
 
   C->>A: Create order
   A->>B: Normalize request
   B->>D: Persist pending order
   B-->>C: Return order id
   W->>D: Poll pending orders
-  W->>Z: Evaluate policy
+  W->>Z: Evaluate requester policy
   alt denied
     W->>D: Mark denied
   else allowed
-    W->>P: Execute challenge path if needed
-    W->>I: Issue certificate
+    W->>P: Execute internal proof path if required
+    W->>I: Invoke selected issuer
+    I->>T: Run acme.sh / certbot / mock
+    T->>E: Perform external validation and issuance
     W->>D: Mark issued or failed
   end
 ```
 
-## 6. Workflow Boundary: ACME vs Broker
+## 6. Boundary Rules
 
-| Area | ACME workflow | Broker-native workflow |
-|------|---------------|------------------------|
-| Request identity | ACME account key | Internal requester identity |
-| Challenge actor | Client fulfills challenge | Service may execute challenge-provider logic |
-| Validation style | RFC 8555-compatible ACME validation | Broker-controlled flow |
-| Main purpose | External client compatibility | Internal policy-driven brokering |
+| Area | Meaning |
+|------|---------|
+| Request identity | Who the internal requester is |
+| Authorization | Whether that requester may ask for the requested names |
+| Proof handler | What extra local evidence or approval is required before invoking an issuer |
+| Issuer | Which external tool and credential set may fulfill the request |
+| External validation | The CA challenge flow executed by the issuer adapter |
 
-The ACME surface is the primary product contract, but the broker core must stay independent of raw ACME semantics so both interfaces can share one honest implementation model.
+Key rule:
+
+- the issuer may have broader technical power than the requester
+- policy decides whether that issuer may be used for this requester and this name set
+- requester authorization must never be inferred from the fact that an issuer could technically validate a broader zone
 
 ## 7. Related Documents
 
@@ -180,10 +210,11 @@ For topic ownership and navigation, use [`../README.md`](../README.md).
 
 Main companion documents:
 
-- [`acme-api-reference.md`](./acme-api-reference.md): ACME-visible behavior
+- [`overview.md`](./overview.md): project purpose and success criteria
+- [`policy-config.md`](./policy-config.md): configuration, issuer profiles, and policy matching
 - [`data-model.md`](./data-model.md): lifecycle, persistence, and storage
-- [`policy-config.md`](./policy-config.md): configuration and policy matching
 - [`implementation-guide.md`](./implementation-guide.md): code-shape guidance and test expectations
-- [`broker-api-reference.md`](./broker-api-reference.md): secondary broker-native HTTP behavior
+- [`acme-api-reference.md`](./acme-api-reference.md): primary ACME-facing behavior
+- [`broker-api-reference.md`](./broker-api-reference.md): later secondary broker-native HTTP behavior
 - [`security-operations.md`](./security-operations.md): security defaults and runtime posture
 - [`implementation-plan.md`](./implementation-plan.md): sequencing, iteration scope, and MVP completion

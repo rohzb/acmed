@@ -17,14 +17,14 @@ Design for at least these threats:
 - bearer token leakage
 - mTLS credential misuse
 - malformed input
-- incompatible ACME behavior causing client failure
 - issuer subprocess abuse or command injection
 - leakage of secrets through logs, audit records, or artifacts
 - abusive order creation causing resource exhaustion
+- issuer credentials that can validate a much broader zone than any individual requester should control
 
 ## 2. Transport And Identity
 
-- require TLS for deployed broker, admin, and ACME endpoints
+- require TLS for deployed ACME, admin, and any later broker API endpoints
 - allow plain HTTP only for explicit localhost or isolated development mode
 - if mTLS is enabled, bind requester identity to the verified client certificate rather than to untrusted headers
 - evaluate authorization with deny-by-default behavior
@@ -32,11 +32,11 @@ Design for at least these threats:
 
 Authentication posture for the MVP:
 
-- make ACME account-key authentication plus External Account Binding the required happy-path identity mechanism for the primary ACME interface
-- make API-token authentication available for the optional broker API and admin surface
+- make API-token authentication available for the admin surface and any later broker API
 - treat mTLS support as optional until a later slice requires or tests it
 - store token secrets outside YAML and compare them using constant-time checks
 - keep one stable authenticated subject for the full request lifecycle, including audit writes and deduplication
+- keep ACME account authentication separate from broker token authentication
 
 Admin endpoint posture:
 
@@ -47,11 +47,17 @@ Admin endpoint posture:
 ## 3. Authorization Safety
 
 - fail closed on parse errors, missing references, or ambiguous matches
-- prefer exact-name or tightly scoped rules over broad wildcard grants
+- prefer exact-name or tightly scoped rules over broad suffix grants
 - validate syntax-tagged policy entries at startup so malformed or over-broad entries never reach runtime matching
 - do not enable regex-backed policy matching by default; treat it as a higher-risk extension that needs explicit validation limits
-- treat the `no-challenge` path as a high-trust policy path that must be explicit and auditable
+- treat the `no-proof` path as a high-trust policy path that must be explicit and auditable
 - restrict broker order access to the original requester or an administrator
+
+Critical trust-boundary rule:
+
+- issuer capability is not requester permission
+- a broad DNS-capable issuer may be allowed to solve challenges for a whole zone
+- only policy determines whether a given requester may invoke that issuer for a specific subset of names
 
 ## 4. Secret Handling
 
@@ -59,7 +65,8 @@ Do not log:
 
 - private keys
 - bearer tokens
-- external account binding secrets
+- external issuer credentials
+- ACME External Account Binding secrets
 - raw mTLS key material
 
 Additional rules:
@@ -71,7 +78,7 @@ Additional rules:
 
 ## 5. Command Execution
 
-Command-based issuers must run through controlled subprocess wrappers with:
+Issuer adapters must run through controlled subprocess wrappers with:
 
 - explicit argument lists
 - bounded execution time
@@ -82,6 +89,12 @@ Command-based issuers must run through controlled subprocess wrappers with:
 - isolated working directories and output paths
 
 Do not invoke a shell unless there is no safer alternative.
+
+Additional issuer-execution rules:
+
+- do not allow requesters to supply raw plugin flags or executable paths
+- pass only the environment variables required by the selected issuer profile
+- keep issuer working directories and output files isolated per order
 
 ## 6. Artifact And Audit Protection
 
@@ -119,11 +132,12 @@ Operational notes:
 - run the service as a dedicated non-root user where possible
 - keep database and artifact paths outside publicly served directories
 - if API and worker remain in one process, compensate with strict local filesystem permissions and conservative subprocess handling
+- keep issuer credentials readable only by the `acmed` runtime identity or the narrow helper it invokes
 
 ## 9. Startup Sequence
 
 1. Load YAML configuration.
-2. Validate plugin references, ACME settings, security settings, and storage paths.
+2. Validate plugin references, issuer profiles, security settings, and storage paths.
 3. Open or initialize SQLite schema.
 4. Start the worker loop.
 5. Start HTTP server.
@@ -134,6 +148,7 @@ Startup must also fail closed when:
 - mTLS is enabled without a trust anchor
 - configured request or retry limits are zero, negative, or unreasonably malformed
 - artifact or database paths cannot be created with the required restrictive permissions
+- an issuer profile references a missing executable or unsupported adapter type
 
 ## 10. Background Processing Expectations
 
@@ -157,17 +172,18 @@ Worker-claim expectations:
 |------|------|-------------------|
 | SQLite locking | concurrent writers block each other | keep writes short and worker concurrency modest |
 | External issuer command failure | non-zero exit or timeout | capture logs, classify failure, retry only when safe |
-| DNS challenge propagation delay | validation races ahead of propagation | support wait or retry policy in challenge logic |
-| Policy misconfiguration | over-broad authorization | fail closed and surface config validation errors |
+| DNS challenge propagation delay | issuer validation races ahead of propagation | support wait or retry policy in issuer logic |
+| Policy misconfiguration | over-broad requester authorization | fail closed and surface config validation errors |
 | Artifact write failure | certificate not persisted | keep order failed, preserve issuer result metadata, emit audit event |
 | Restart during issuance | orphaned in-progress state | recover from persisted attempts and allow controlled retry |
 | Token or credential leakage | unauthorized issuance or inspection | require TLS, redaction, secret-env-backed token handling, and secret minimization |
 | Command injection | arbitrary command execution | validate inputs, use explicit argv, avoid shell execution, sanitize environment |
 | Audit oversharing | secrets appear in logs or API output | redact by default and restrict audit access |
+| Privileged issuer misuse | requester triggers a broader issuer than policy intended | keep issuer selection policy-restricted and auditable |
 
 ## 12. Related Documents
 
-- [`acme-api-reference.md`](./acme-api-reference.md): ACME-visible authentication, nonce, and challenge behavior
-- [`policy-config.md`](./policy-config.md): authorization rules, policy syntax, and matcher behavior
+- [`broker-api-reference.md`](./broker-api-reference.md): later broker-native HTTP behavior
+- [`policy-config.md`](./policy-config.md): authorization rules, issuer profiles, and matcher behavior
 - [`data-model.md`](./data-model.md): worker-claim persistence, artifact layout, and admin-surface boundaries
-- [`broker-api-reference.md`](./broker-api-reference.md): requester-facing and admin-facing broker HTTP behavior
+- [`acme-api-reference.md`](./acme-api-reference.md): primary ACME-visible behavior

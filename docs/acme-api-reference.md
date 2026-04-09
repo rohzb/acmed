@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> This document is the authoritative ACME-facing contract for `acmed`. The implementation's ACME endpoints should follow this file.
+> This document defines the primary ACME-facing contract for `acmed`.
 
 Use this document as the source of truth for ACME-visible behavior. If it conflicts with a planning note or smoke-test example, prefer this file.
 
@@ -29,7 +29,7 @@ The interface should behave like a normal ACME server for the documented support
 
 ## 3. ACME Support Matrix
 
-Use this table as the truth source for what the MVP should and should not claim for the initial ACME release.
+Use this table as the truth source for what the first implementation should and should not claim.
 
 | Feature | MVP posture |
 |---------|------------|
@@ -46,8 +46,8 @@ Use this table as the truth source for what the MVP should and should not claim 
 | Certificate download | required |
 | DNS identifiers | required |
 | Wildcards | optional; only with full `dns-01` support |
-| `http-01` | required |
-| `dns-01` | required |
+| `http-01` | optional; advertise only if truly implemented |
+| `dns-01` | optional; advertise only if truly implemented |
 | `tls-alpn-01` | optional |
 | `revokeCert` | optional |
 | `keyChange` | optional |
