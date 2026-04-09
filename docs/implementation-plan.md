@@ -23,9 +23,10 @@ Use companion docs for topic-specific rules:
 - [`architecture.md`](./architecture.md): runtime shape and boundaries
 - [`data-model.md`](./data-model.md): lifecycle, persistence, and artifacts
 - [`policy-config.md`](./policy-config.md): config schema, identity, policy matching, and defaults
-- [`broker-api-reference.md`](./broker-api-reference.md): broker-native HTTP contract
-- [`security-operations.md`](./security-operations.md): security and runtime posture
 - [`acme-api-reference.md`](./acme-api-reference.md): ACME-visible behavior
+- [`implementation-guide.md`](./implementation-guide.md): code-shape guidance and test expectations
+- [`broker-api-reference.md`](./broker-api-reference.md): optional broker-native HTTP contract
+- [`security-operations.md`](./security-operations.md): security and runtime posture
 
 ## 2. Core Delivery Rule
 
@@ -89,15 +90,17 @@ Done when:
 - config validation works
 - basic tests run successfully
 
-## 5. Iteration 1: Broker-Native Happy Path
+## 5. Iteration 1: ACME-Compatible Happy Path
 
 Goal:
 
-- implement one complete broker-native issuance flow
+- implement one complete ACME-compatible issuance flow
 
 Include:
 
-- broker API order creation
+- ACME directory and nonce
+- ACME account creation with External Account Binding
+- ACME order creation
 - SQLite order persistence
 - worker pickup of `pending` orders
 - one authorizer path
@@ -107,7 +110,7 @@ Include:
 Do not include yet:
 
 - command-based external issuer behavior
-- ACME compatibility
+- broker-native optional interfaces beyond what the core needs
 - multiple challenge modes unless one is needed for the slice
 
 Checklist:
@@ -117,34 +120,29 @@ Checklist:
 - [ ] Implement artifact layout and sensitive-file permissions.
 - [ ] Implement audit-event writes.
 - [ ] Implement deduplication key handling.
-- [ ] Normalize broker-native requests.
+- [ ] Normalize ACME order requests.
 - [ ] Enforce request size and SAN-count limits at the HTTP boundary.
 - [ ] Parse and validate `allowed_domains` entries with explicit `syntax` and `value` fields.
-- [ ] Support `exact` and `suffix` policy syntax in the broker-first matcher.
+- [ ] Support `exact` and `suffix` policy syntax in the initial policy matcher.
 - [ ] Resolve policy and issuer/challenge choices.
 - [ ] Enforce CSR mode selection from `csr_pem` presence versus selected policy mode.
 - [ ] Persist new orders as `pending`.
 - [ ] Implement asynchronous worker pickup.
 - [ ] Restrict worker claim pickup to `pending` and recoverable `authorized` orders.
 - [ ] Transition orders through authorization, issuance, and terminal states.
-- [ ] Add `POST /api/v1/orders`.
-- [ ] Add `GET /api/v1/orders/<order_id>`.
-- [ ] Add `GET /api/v1/orders`.
-- [ ] Keep broker and admin order-list responses minimal and newest-first by default.
-- [ ] Return `404` for requester-scoped reads of both missing and not-owned orders.
-- [ ] Enforce requester authentication and order access control.
-- [ ] Enforce admin access through the explicit admin-subject allow-list.
+- [ ] Add the minimal ACME endpoints required for create, poll, finalize, and certificate retrieval.
+- [ ] Enforce ACME account authentication and resource ownership rules.
 - [ ] Enforce TLS outside explicit local development mode.
 - [ ] Enforce deny-by-default authorization.
 - [ ] Redact secrets from logs and audit records.
 - [ ] Implement at least one authorizer.
 - [ ] Implement a mock issuer.
 - [ ] Configure `pytest` as the canonical Python test runner.
-- [ ] Pass state-machine, config-validation, broker-API, policy-matching, and happy-path worker tests.
+- [ ] Pass state-machine, config-validation, ACME-protocol, policy-matching, and happy-path worker tests.
 
 Done when:
 
-- a broker-native request can reach `issued`
+- an ACME order can reach certificate issuance successfully
 - artifacts and audit records are written
 - happy-path tests pass
 
@@ -152,7 +150,7 @@ Done when:
 
 Goal:
 
-- make the broker-native flow honest and safe in failure conditions
+- make the ACME-first flow honest and safe in failure conditions
 
 Include:
 
@@ -180,27 +178,28 @@ Done when:
 - expired orders land in `expired`
 - failure behavior is tested and documented
 
-## 7. Iteration 3: Broker-Native Challenge Expansion
+## 7. Iteration 3: ACME Challenge Expansion
 
 Goal:
 
-- add challenge behavior for broker-native workflows only
+- add the ACME challenge behavior needed for real protocol compatibility
 
 Include:
 
-- explicit `no-challenge` path
-- at least one broker-native challenge-provider path if needed
-- clear separation between broker-native challenge logic and future ACME challenge behavior
+- authorization resources
+- challenge resources
+- at least one working ACME challenge path
+- clear separation between ACME challenge behavior and any later broker-native helper paths
 
 Checklist:
 
-- [ ] Implement the explicit `no-challenge` path.
-- [ ] Implement at least one broker-native challenge-provider path if needed.
-- [ ] Keep broker-native challenge logic separate from future ACME challenge behavior.
+- [ ] Implement ACME authorization and challenge resources.
+- [ ] Implement at least one ACME challenge path end to end.
+- [ ] Keep ACME challenge behavior separate from any later broker-native helper workflow.
 
 Done when:
 
-- broker-native challenge flows work end to end
+- ACME challenge flows work end to end
 - the docs still clearly separate broker and ACME behavior
 
 ## 8. Iteration 4: Command-Based Issuer Integration
@@ -227,50 +226,41 @@ Done when:
 - the mock issuer path still works
 - the implementation does not over-abstract issuer handling
 
-## 9. Iteration 5: ACME Minimal Compatible Flow
+## 9. Iteration 5: Broker API Expansion
 
 Goal:
 
-- implement the smallest ACME flow that is genuinely compatible with documented support
+- add the optional broker-native API after the ACME-first service shape is stable
 
 Include:
 
-- directory
-- nonce
-- account creation
-- External Account Binding for account creation
-- account resource fetch and update
-- account orders resource
-- order creation
-- order polling
-- authorization and challenge resources
-- both `http-01` and `dns-01` challenge flows
-- finalize
-- certificate retrieval
+- create-order endpoint
+- order read endpoint
+- requester-scoped list endpoint
+- minimal admin visibility endpoint
+- internal-authentication and ownership rules for the broker surface
 
 Checklist:
 
-- [ ] Implement the ACME resources defined in [`acme-api-reference.md`](./acme-api-reference.md).
-- [ ] Keep ACME behavior protocol-correct and broker-internal behavior separate.
-- [ ] Enforce identifier support rules, ownership checks, and DNS normalization.
-- [ ] Require External Account Binding for ACME account creation.
-- [ ] Implement the ACME account resource and account orders resource required by the support matrix.
-- [ ] Implement both `http-01` and `dns-01` challenge flows.
-- [ ] Advertise only the ACME features actually implemented.
-- [ ] Run ACME integration tests against Pebble.
-- [ ] Pass ACME protocol tests for the documented supported feature set.
+- [ ] Implement the broker API resources defined in [`broker-api-reference.md`](./broker-api-reference.md).
+- [ ] Keep broker-native behavior additive and separate from the primary ACME contract.
+- [ ] Enforce requester authentication and resource ownership rules.
+- [ ] Return `404` for requester-scoped reads of both missing and not-owned orders.
+- [ ] Keep broker and admin order-list responses minimal and newest-first by default.
+- [ ] Enforce admin access through the explicit admin-subject allow-list.
+- [ ] Run broker API integration tests.
 
 Done when:
 
-- the ACME adapter behaves correctly for the documented feature set
-- protocol tests pass under `pytest`
-- local ACME integration tests run against Pebble
+- the optional broker API behaves correctly for the documented feature set
+- broker API tests pass under `pytest`
+- the ACME-first product contract remains unchanged
 
 ## 10. Iteration 6: Compatibility Hardening
 
 Goal:
 
-- prove the ACME adapter works with real clients
+- prove the ACME interface works with real clients
 
 Include:
 
@@ -322,11 +312,11 @@ Pause and reassess if:
 
 When in doubt, implement in this order:
 
-1. broker-native happy path
+1. ACME-compatible happy path
 2. denial and failure paths
-3. broker-native challenge paths
+3. ACME challenge paths
 4. command-based issuer support
-5. ACME minimal compatible flow
+5. broker API expansion
 6. real-client compatibility hardening
 7. optional ACME feature expansion
 
@@ -334,11 +324,12 @@ When in doubt, implement in this order:
 
 The MVP is complete when:
 
-- broker-native ordering works end to end
+- ACME ordering works end to end
 - worker processing is asynchronous and durable
 - security defaults are active
 - runtime state and artifacts are durable
 - ACME behavior matches the documented supported feature set
+- the broker API works if enabled, without redefining the primary product contract
 - `certbot` and `acme.sh` smoke tests pass
 - the default automated test path does not depend on live Let’s Encrypt services
 - the code remains small enough to understand without a framework-heavy architecture

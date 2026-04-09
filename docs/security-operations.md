@@ -30,9 +30,10 @@ Design for at least these threats:
 - evaluate authorization with deny-by-default behavior
 - require explicit requester-to-domain authorization before issuance
 
-Broker-first authentication posture:
+Authentication posture for the MVP:
 
-- make API-token authentication the required happy-path identity mechanism for Iteration 1
+- make ACME account-key authentication plus External Account Binding the required happy-path identity mechanism for the primary ACME interface
+- make API-token authentication available for the optional broker API and admin surface
 - treat mTLS support as optional until a later slice requires or tests it
 - store token secrets outside YAML and compare them using constant-time checks
 - keep one stable authenticated subject for the full request lifecycle, including audit writes and deduplication
@@ -99,7 +100,7 @@ Do not invoke a shell unless there is no safer alternative.
 - reject obviously excessive SAN counts or request sizes early
 - keep renewal and retry logic bounded
 
-Broker-first default limits:
+Default limits for the MVP:
 
 - use the documented defaults from [`policy-config.md`](./policy-config.md) unless a deployment overrides them explicitly
 - enforce the request body and SAN-count limits at the HTTP boundary before policy lookup or deduplication
@@ -145,7 +146,7 @@ Startup must also fail closed when:
 Worker-claim expectations:
 
 - each in-progress order should have one active worker claim at a time
-- claim state should be persisted on the order record rather than in a separate queue system for the broker-first milestone
+- claim state should be persisted on the order record rather than in a separate queue system for the MVP
 - claims should expire after a bounded interval so abandoned work can be recovered
 - recovery should reclaim only expired or explicitly released claims
 - claim acquisition should be implemented with short, atomic SQLite writes
@@ -166,6 +167,7 @@ Worker-claim expectations:
 
 ## 12. Related Documents
 
+- [`acme-api-reference.md`](./acme-api-reference.md): ACME-visible authentication, nonce, and challenge behavior
 - [`policy-config.md`](./policy-config.md): authorization rules, policy syntax, and matcher behavior
 - [`data-model.md`](./data-model.md): worker-claim persistence, artifact layout, and admin-surface boundaries
 - [`broker-api-reference.md`](./broker-api-reference.md): requester-facing and admin-facing broker HTTP behavior

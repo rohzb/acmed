@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> This document defines the broker configuration shape, policy syntax, matcher semantics, and policy-selection rules.
+> This document defines the runtime configuration shape, policy syntax, matcher semantics, and policy-selection rules.
 
 Use this document as the source of truth for YAML configuration, policy definitions, and policy matching behavior.
 
@@ -12,7 +12,7 @@ Owns: configuration schema, identity and admin config, operational defaults, pol
 
 Configuration examples should stay aligned with the documented delivery and test strategy:
 
-- start with the broker-native happy path before enabling ACME compatibility
+- treat ACME as the primary external interface for the MVP
 - use local, deterministic settings for routine automated testing
 - prefer Pebble-oriented ACME settings for local integration runs
 - treat Let’s Encrypt staging as optional external verification rather than the default test target
@@ -53,7 +53,7 @@ orders:
   max_retries: 3
 
 acme:
-  enabled: false
+  enabled: true
   directory_path: /acme/directory
   supported_challenges:
     - http-01
@@ -86,7 +86,7 @@ authorizers:
       - 10.20.30.0/24
 
 policies:
-  - name: lab-broker-happy-path
+  - name: lab-default-policy
     requester_match:
       authorizers:
         - subnet-lab
@@ -99,11 +99,13 @@ policies:
     challenge: no-challenge
 ```
 
-This example is the broker-first baseline with ACME disabled. It is intentionally not the ACME-enabled MVP runtime configuration.
+This example is an ACME-enabled MVP baseline. It keeps the shared runtime small while still reflecting the primary ACME-facing product surface.
 
-While `acme.enabled` remains `false`, the nested ACME settings shown here should be treated as inactive placeholders for a later ACME-enabled override rather than as active broker-first behavior.
+The same runtime may still expose the broker API for internal or operational use, but that interface remains secondary to the documented ACME contract.
 
-When the implementation reaches the ACME iteration, add a second example or environment-specific override that enables ACME, Pebble-oriented integration settings, and any supported challenge-provider configuration. Do not let the first example imply that wildcard issuance, external ACME backends, or production Let’s Encrypt integration are part of the initial milestone.
+The `challenge_providers` section in this example represents internal helper paths such as broker-native challenge execution. ACME `http-01` and `dns-01` remain client-visible protocol flows defined by [`acme-api-reference.md`](./acme-api-reference.md) rather than interchangeable broker challenge plugins.
+
+Add environment-specific overrides when needed for Pebble integration, staging verification, or later optional features. Do not let this baseline imply that wildcard issuance, external ACME backends, or production Let’s Encrypt integration are part of the initial milestone.
 
 For the ACME MVP, the enabled ACME configuration should:
 
@@ -111,9 +113,18 @@ For the ACME MVP, the enabled ACME configuration should:
 - require External Account Binding for account creation
 - keep wildcard support disabled unless the full `dns-01` wildcard path is implemented end to end
 
-### 1.1 Broker-first operational defaults
+### 1.1 Interface boundary in configuration
 
-Unless a later slice has a documented reason to override them, use these broker-first defaults:
+Keep the configuration split conceptually even when one process hosts both surfaces:
+
+- `acme.*` config controls the primary ACME-facing behavior
+- `identity.*` and `access.*` primarily control the optional broker API and admin surface
+- `authorizers`, `challenge_providers`, `issuers`, `policies`, `storage`, and `workers` belong to the shared broker-style core
+- do not model ACME challenge types as interchangeable broker `challenge_providers`
+
+### 1.2 Initial operational defaults
+
+Unless a later slice has a documented reason to override them, use these defaults:
 
 - `limits.max_dns_names_per_order`: `25`
 - `limits.max_csr_bytes`: `32768`
@@ -125,11 +136,11 @@ Unless a later slice has a documented reason to override them, use these broker-
 
 Treat these as explicit documented defaults rather than as placeholders.
 
-### 1.2 Identity and admin configuration
+### 1.3 Identity and admin configuration
 
-Broker-first identity rules:
+Broker API and admin identity rules:
 
-- support API-token authentication in the first runnable slice
+- support API-token authentication for the broker API and admin surface
 - treat each configured API token as one stable requester subject
 - resolve `requester_id` from the token's configured `subject`
 - read token secret material from an environment variable named by `secret_env` rather than from inline YAML secret text
@@ -137,7 +148,7 @@ Broker-first identity rules:
 
 mTLS configuration rules:
 
-- allow `mtls.enabled: false` for the broker-first local path
+- allow `mtls.enabled: false` for the default local path
 - require `trusted_client_ca_file` when `mtls.enabled: true`
 - if mTLS subject mappings are configured, apply them after certificate verification and before policy lookup
 - reject startup if a mapping would resolve to an empty or duplicate requester subject
@@ -150,7 +161,7 @@ Admin configuration rules:
 
 ## 2. Policy Matcher Syntax
 
-For the broker-first MVP and later extensions, `allowed_domains` entries should declare their matching syntax explicitly.
+For the MVP and later extensions, `allowed_domains` entries should declare their matching syntax explicitly.
 
 Recommended policy entry shape:
 
@@ -175,7 +186,7 @@ Recognized `syntax` values:
 - `suffix`
 - `regex`
 
-Broker-first MVP runtime support:
+Initial runtime support:
 
 - `exact` and `suffix` are supported
 - `regex` must be rejected unless regex policy mode is explicitly enabled
@@ -243,19 +254,21 @@ policies:
 
 ### 3.1 Request Normalization And Identity
 
-Before persisting a broker-native order:
+Before persisting an order from any external interface:
 
 - authenticate the requester and derive one stable `requester_id`
 - normalize all DNS names before policy evaluation
 - reject empty identifier sets, malformed names, duplicate names, or a `common_name` that is not present in `dns_names`
 - resolve exactly one effective policy for the request
 
-Requester identity rules for the broker-first MVP:
+Requester identity rules for the MVP:
 
 - derive `requester_id` from the authenticated credential rather than from client-supplied request fields
-- when API tokens are used, bind `requester_id` to the token's configured subject or principal name
-- when mTLS is used, bind `requester_id` to the verified client certificate identity after any configured mapping step
-- never allow the requester to override `requester_id` in the JSON payload
+- for ACME requests, bind `requester_id` to the ACME account identity or equivalent stable account-key identifier
+- for broker API requests, bind `requester_id` to the token's configured subject or verified mTLS identity after any configured mapping step
+- never allow the requester to override `requester_id` in the request payload
+
+Identifier normalization rules apply the same way across both interfaces even when the authentication model differs.
 
 Client input mode rules:
 
@@ -267,7 +280,7 @@ Client input mode rules:
 
 ### 3.2 Policy Resolution
 
-Policy resolution rules for the broker-first MVP:
+Policy resolution rules for the MVP:
 
 - if no policy matches the authenticated requester and requested identifiers, reject the request
 - if more than one policy matches but all selected runtime choices are identical, choose the most specific policy and record the selected policy name in audit metadata
@@ -280,20 +293,20 @@ Identifier-to-policy matching rules:
 - treat exact names, wildcard request identifiers, suffix entries, and, when enabled, regex entries as distinct forms during matching
 - match request identifiers against policy entries only after request normalization
 - use the declared `syntax` field rather than inferring matcher behavior from the `value`
-- in the broker-first MVP, treat the `suffix` form as the explicit policy form that allows wildcard request identifiers under that zone
+- treat the `suffix` form as the explicit policy form that allows wildcard request identifiers under that zone
 - do not satisfy a wildcard request from a plain `exact` host entry
 - when a request contains multiple identifiers, evaluate each identifier independently and then require one policy to cover the full set
 
-Wildcard authorization rules for the broker-first MVP:
+Wildcard authorization rules for the MVP:
 
 - a requested wildcard identifier such as `*.lab.example.org` may be authorized only by a broader `suffix` entry such as `.lab.example.org`
 - an exact apex entry such as `lab.example.org` does not authorize `*.lab.example.org`
 - if ACME wildcard issuance is disabled, reject wildcard identifiers even if a broker policy pattern would otherwise match them
-- if ACME wildcard issuance is enabled later, require `dns-01` for wildcard identifiers regardless of any broader challenge preference
+- if wildcard issuance is enabled in a later slice, require `dns-01` for wildcard identifiers regardless of any broader challenge preference
 
 Regex policy mode:
 
-- do not include regex matching in the broker-first MVP
+- do not include regex matching in the initial MVP
 - if regex matching is added later, require explicit configuration to enable it
 - allow regex matching only on policy entries that declare `syntax: regex`
 - restrict regex patterns to anchored full matches against normalized identifiers
@@ -301,7 +314,7 @@ Regex policy mode:
 - reject regex patterns that fail validation or exceed defined complexity limits
 - keep regex-backed policies lower priority than exact matches unless a later document says otherwise
 
-Specificity rules for the broker-first MVP:
+Specificity rules for the MVP:
 
 - prefer exact identifier matches over broader domain patterns
 - prefer policies with narrower requester constraints over broader requester constraints
@@ -312,4 +325,4 @@ Specificity rules for the broker-first MVP:
 
 For lifecycle, persistence, and storage behavior, use [`data-model.md`](./data-model.md).
 
-For broker-native HTTP behavior, use [`broker-api-reference.md`](./broker-api-reference.md).
+For the optional broker-native HTTP behavior, use [`broker-api-reference.md`](./broker-api-reference.md).

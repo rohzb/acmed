@@ -14,7 +14,9 @@ Use this document for:
 
 - client-oriented smoke-test examples
 - compatibility validation notes
-- practical reminders about how `certbot` and `acme.sh` should interact with the ACME adapter
+- practical reminders about how `certbot` and `acme.sh` should interact with the ACME interface
+
+Do not use this document as the main protocol reference. It exists to validate and exercise the contract defined in [`acme-api-reference.md`](./acme-api-reference.md).
 
 ## 2. Compatibility Rules
 
@@ -24,6 +26,8 @@ Use this document for:
 - keep the documented supported feature set synchronized with the real implementation
 - for the MVP, support both `http-01` and `dns-01`
 - for the MVP, require ACME External Account Binding for account creation and test clients with that enrollment flow
+
+When this document and [`acme-api-reference.md`](./acme-api-reference.md) differ, treat the API reference as authoritative and use this file only for practical validation guidance.
 
 Preferred testing environments:
 

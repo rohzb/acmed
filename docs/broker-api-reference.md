@@ -2,15 +2,17 @@
 
 > [!TIP]
 > **TL;DR**
-> This document defines the broker-native HTTP contract for order creation, order reads, and minimal admin visibility.
+> This document defines the secondary broker-native HTTP contract for internal order creation, order reads, and minimal admin visibility.
 
-Use this document as the source of truth for the broker-native API contract.
+Use this document as the source of truth for the broker-native API contract when that interface is enabled.
 
 Owns: broker-native request and response behavior, status codes, visibility rules, and admin list posture.
 
 ## 1. Scope
 
-For the broker-first milestone, keep the broker API contract small and explicit.
+The broker API is a secondary interface for internal integrations and operational workflows. It should stay small and explicit, and it must not redefine the main ACME-facing product contract.
+
+Use this document only when the broker API is actually enabled or being designed. For shared lifecycle, persistence, or policy rules, prefer the topic-owning docs instead of restating them here.
 
 ## 2. Create Order
 
@@ -93,9 +95,9 @@ Artifact reference shape should stay minimal. Prefer:
 - stable API-relative download paths or artifact ids
 - no raw filesystem paths in requester-facing responses
 
-Do not expose internal worker-claim fields, raw audit metadata, raw filesystem paths, or secret-bearing artifact details through the broker-first requester-facing order API.
+Do not expose internal worker-claim fields, raw audit metadata, raw filesystem paths, or secret-bearing artifact details through the requester-facing broker API.
 
-Requester-facing artifact retrieval posture for the broker-first MVP:
+Requester-facing artifact retrieval posture for the initial broker API slice:
 
 - do not expose artifact download URLs until a concrete retrieval endpoint is documented and implemented
 - if artifacts exist, the requester-facing order view may expose only stable logical artifact names or an `artifacts_available` boolean
@@ -109,10 +111,10 @@ Recommended response shape:
 
 - `orders`: array of compact broker-native order views
 
-Broker-first list rules:
+Broker API list rules:
 
 - default ordering should be newest first by `created_at`
-- keep the first milestone simple: omit pagination, filtering, and sorting controls unless a real slice requires them
+- keep the initial broker API slice simple: omit pagination, filtering, and sorting controls unless a real slice requires them
 - do not expose other requesters' orders through this endpoint
 
 ## 5. Admin Visibility
@@ -127,7 +129,7 @@ Admin list rules:
 
 - default ordering should be newest first by `created_at`
 - include `requester_id` in the admin list view
-- keep the first milestone simple: omit pagination, filtering, and sorting controls unless a real slice requires them
+- keep the initial broker API slice simple: omit pagination, filtering, and sorting controls unless a real slice requires them
 
 ## 6. HTTP Status Matrix
 
@@ -150,7 +152,7 @@ Use these broker HTTP statuses as the implementation baseline:
 
 ## 7. Error Posture
 
-For the broker-first MVP, keep requester-facing API errors compact and fail closed.
+For the initial broker API slice, keep requester-facing API errors compact and fail closed.
 
 Recommended rules:
 
@@ -170,3 +172,5 @@ Ownership-disclosure rules:
 For lifecycle, persistence, artifact layout, and admin-surface boundaries, use [`data-model.md`](./data-model.md).
 
 For configuration and policy-matching behavior, use [`policy-config.md`](./policy-config.md).
+
+For the main external protocol contract, use [`acme-api-reference.md`](./acme-api-reference.md).

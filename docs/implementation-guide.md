@@ -22,10 +22,19 @@ Companion documents:
 
 Use these as cross-document implementation anchors for the first pass:
 
+- use [`acme-api-reference.md`](./acme-api-reference.md) for the primary external protocol contract
 - use [`policy-config.md`](./policy-config.md) for request limits, retry bounds, TTL defaults, and identity configuration
-- use [`broker-api-reference.md`](./broker-api-reference.md) for create-order status behavior, requester visibility rules, and admin access posture
+- use [`broker-api-reference.md`](./broker-api-reference.md) only for the secondary broker-native interface
 - use [`data-model.md`](./data-model.md) for lifecycle states, worker reclaim eligibility, and artifact layout
 - use [`security-operations.md`](./security-operations.md) for startup fail-closed rules and abuse controls
+
+If a rule appears in more than one companion document, prefer the most interface-specific or topic-specific source rather than averaging them together.
+
+In practice:
+
+- prefer [`acme-api-reference.md`](./acme-api-reference.md) for ACME-visible request, response, object, and error behavior
+- prefer [`broker-api-reference.md`](./broker-api-reference.md) only for the optional broker surface
+- prefer [`policy-config.md`](./policy-config.md), [`data-model.md`](./data-model.md), and [`security-operations.md`](./security-operations.md) for shared core rules
 
 ## 3. Implementation Priorities
 
@@ -45,8 +54,8 @@ For the MVP, prefer a modular monolith over a highly segmented architecture.
 
 | Package | Responsibility |
 |--------|-----------------|
-| `api.py` | Broker endpoints, admin and health endpoints, and broker request validation |
-| `acme_api.py` | ACME translation layer and ACME-visible HTTP behavior when the adapter is enabled |
+| `api.py` | Optional broker endpoints plus shared admin and health endpoints |
+| `acme_api.py` | Primary ACME-facing HTTP behavior and protocol translation into the core order model |
 | `models.py` | Domain entities, request models, and state values |
 | `policy.py` | Policy resolution plus authorizer and challenge selection logic |
 | `auth.py` | Identity extraction, token checks, and mTLS mapping |
@@ -55,15 +64,15 @@ For the MVP, prefer a modular monolith over a highly segmented architecture.
 | `worker.py` | Background processing loop and order claiming |
 | `audit.py` | Structured audit event creation |
 | `authorizers/` | Policy evaluation implementations |
-| `challenges/` | Broker-native challenge execution implementations |
+| `challenges/` | Shared challenge helpers and any broker-native challenge execution implementations |
 | `issuers/` | Certificate issuance implementations |
 
 Split these files only after they become materially harder to read or maintain.
 
 Entrypoint responsibility:
 
-- `main.py` should load config, initialize storage, start the worker loop, and serve the HTTP application for the broker-first MVP
-- when ACME is enabled for the documented ACME slices, the same application should mount the ACME routes without reshaping the broker core
+- `main.py` should load config, initialize storage, start the worker loop, and serve the ACME-first HTTP application for the MVP
+- the same application may mount the broker API when that secondary interface is enabled without reshaping the broker core
 
 ## 5. Design Rules for Generated Code
 
@@ -81,7 +90,7 @@ Entrypoint responsibility:
 12. Fail closed on ambiguous security decisions.
 13. Never log or return secrets, private keys, or raw credentials.
 14. Treat issuer, challenge, and request input as untrusted until validated.
-15. When implementing the ACME adapter, follow client-visible RFC 8555 behavior rather than broker-internal shortcuts.
+15. When implementing the ACME interface, follow client-visible RFC 8555 behavior rather than broker-internal shortcuts.
 16. Do not advertise ACME features or challenge types that are not truly implemented end to end.
 17. Make ACME identifier support, ownership checks, and error behavior explicit in code and tests.
 18. Make DNS normalization and account-scoped resource ownership explicit rather than implicit.
@@ -92,7 +101,8 @@ Authoritative companion contracts:
 
 - [`data-model.md`](./data-model.md): order lifecycle, schema shape, and storage layout
 - [`policy-config.md`](./policy-config.md): configuration examples and policy matching rules
-- [`broker-api-reference.md`](./broker-api-reference.md): broker-native HTTP contract
+- [`acme-api-reference.md`](./acme-api-reference.md): ACME-visible contract
+- [`broker-api-reference.md`](./broker-api-reference.md): optional broker-native HTTP contract
 - [`security-operations.md`](./security-operations.md): security baseline, runtime topology, startup behavior, and failure handling
 
 ### Order creation service
@@ -114,7 +124,12 @@ Security responsibilities:
 - reject oversized or obviously abusive requests early
 - avoid exposing internal policy details in user-facing error responses
 
-Implementation defaults for the broker-first MVP:
+Interface note:
+
+- ACME order creation must follow [`acme-api-reference.md`](./acme-api-reference.md) for request and response semantics
+- broker create-order behavior must follow [`broker-api-reference.md`](./broker-api-reference.md) only when that optional surface is enabled
+
+Implementation defaults for the MVP:
 
 - derive one stable requester identity before any policy lookup, dedupe check, or audit write
 - normalize DNS identifiers once near the API boundary and pass the normalized form through the rest of the broker core
@@ -149,13 +164,13 @@ Security responsibilities:
 ACME compatibility responsibilities:
 
 - preserve the distinction between broker-native challenge execution and ACME client-driven challenge fulfillment
-- expose standard ACME status transitions through the adapter while keeping broker-internal orchestration simple
+- expose standard ACME status transitions through the ACME interface while keeping broker-internal orchestration simple
 
 Recommended worker processing order:
 
 1. refuse expired or invalidly claimed orders before invoking plugins
 2. evaluate broker authorization and record the decision
-3. execute broker-native challenge handling only when the selected policy requires it
+3. execute the challenge path required by the selected interface and policy
 4. invoke the issuer only after authorization and challenge state are both satisfied
 5. write artifacts, audit the outcome, and clear or refresh the claim as part of the same final processing slice
 
@@ -199,7 +214,7 @@ When generating config models and validation logic:
 
 The first generated code should make the required tests obvious rather than leaving coverage strategy implicit.
 
-Broker-first tests should cover at least:
+Core tests should cover at least:
 
 - config loading and fail-closed validation
 - DNS normalization and deduplication behavior
@@ -210,9 +225,13 @@ Broker-first tests should cover at least:
 - syntax-tagged regex policy rejection behavior when regex mode is disabled
 - worker claim, recovery, and retry classification behavior
 - artifact permission handling for sensitive outputs
-- broker HTTP status behavior for create-order reuse, policy denial, and hidden unauthorized reads
 - API-token authentication, admin allow-list checks, and secret-env loading behavior
 - CSR mode selection and rejection behavior for mismatched `csr_pem` versus policy mode
+
+Optional broker API tests should cover at least:
+
+- broker HTTP status behavior for create-order reuse, policy denial, and hidden unauthorized reads
+- requester-scoped list visibility and admin list access control
 
 ACME tests should cover at least:
 
@@ -222,6 +241,8 @@ ACME tests should cover at least:
 - POST-as-GET behavior and JWS `url` validation
 - order, authorization, and challenge status progression for both `http-01` and `dns-01`
 - finalize CSR matching and certificate retrieval behavior
+
+Use [`acme-compatibility.md`](./acme-compatibility.md) for smoke-test shape and named-client expectations, but use [`acme-api-reference.md`](./acme-api-reference.md) for the normative protocol contract.
 
 ## 9. Avoid During Generation
 
@@ -241,5 +262,5 @@ Do not:
 - store plaintext tokens or private keys in loosely protected locations without an explicit reason
 - expose order details to unrelated requesters
 - pass unvalidated input into shell commands
-- expose broker-native behaviors through the ACME adapter when they conflict with standard ACME client expectations
-- call the adapter compatible with common clients without implementing the required ACME resource flow and real-client tests
+- expose broker-native behaviors through the ACME interface when they conflict with standard ACME client expectations
+- call the ACME interface compatible with common clients without implementing the required ACME resource flow and real-client tests

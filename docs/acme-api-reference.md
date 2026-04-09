@@ -2,7 +2,7 @@
 
 > [!TIP]
 > **TL;DR**
-> This document is the authoritative ACME-facing contract for `acmed`. If the implementation exposes ACME endpoints, their client-visible behavior should follow this file.
+> This document is the authoritative ACME-facing contract for `acmed`. The implementation's ACME endpoints should follow this file.
 
 Use this document as the source of truth for ACME-visible behavior. If it conflicts with a planning note or smoke-test example, prefer this file.
 
@@ -10,7 +10,7 @@ Owns: normative ACME-visible behavior, endpoint contract, object shapes, and ACM
 
 ## 1. Purpose
 
-Use this document as the ACME protocol reference for the `acmed` adapter.
+Use this document as the ACME protocol reference for the `acmed` service surface.
 
 It does not replace RFC 8555, but it gives the project a concrete, implementation-oriented endpoint contract that future code generation can follow.
 
@@ -20,16 +20,16 @@ Primary normative reference:
 
 ## 2. Compatibility Goal
 
-The ACME adapter should be usable by typical ACME clients through the directory URL with their normal configuration patterns, including:
+The ACME interface should be usable by typical ACME clients through the directory URL with their normal configuration patterns, including:
 
 - `certbot --server <directory-url>`
 - `acme.sh --server <directory-url>`
 
-The adapter should behave like a normal ACME server for the documented supported feature set.
+The interface should behave like a normal ACME server for the documented supported feature set.
 
 ## 3. ACME Support Matrix
 
-Use this table as the truth source for what the MVP should and should not claim for the initial ACME adapter release.
+Use this table as the truth source for what the MVP should and should not claim for the initial ACME release.
 
 | Feature | MVP posture |
 |---------|------------|
@@ -57,7 +57,7 @@ Use this table as the truth source for what the MVP should and should not claim 
 
 ### 4.1 Content types
 
-The ACME adapter should support:
+The ACME interface should support:
 
 - `application/jose+json` for signed ACME requests
 - `application/problem+json` for ACME-compatible error responses
@@ -67,7 +67,7 @@ For the MVP, keep the certificate response format fixed rather than negotiable u
 
 ### 4.2 Authentication model
 
-The ACME adapter should follow ACME account-key authentication semantics for ACME operations.
+The ACME interface should follow ACME account-key authentication semantics for ACME operations.
 
 Broker-native authentication such as API tokens or mTLS belongs to the broker API, not to the ACME protocol itself.
 
@@ -88,11 +88,11 @@ Request handling rules for the MVP:
 
 ### 4.4 Identifier support profile
 
-The MVP ACME adapter should explicitly support:
+The MVP ACME interface should explicitly support:
 
 - DNS identifiers
 
-The MVP ACME adapter should explicitly reject unless later implemented:
+The MVP ACME interface should explicitly reject unless later implemented:
 
 - IP identifiers
 - identifier types other than DNS names
@@ -118,7 +118,7 @@ Canonical identifier rules for the MVP:
 
 ### 4.5 ACME signing rules
 
-The adapter should follow the normal ACME signing model:
+The ACME interface should follow the normal ACME signing model:
 
 - `newAccount` requests use a JWS protected header with `jwk`
 - requests after account creation use a JWS protected header with `kid`
@@ -604,7 +604,7 @@ See [`acme-compatibility.md`](./acme-compatibility.md) for client smoke-test exa
 
 ## 11. Compatibility Boundaries
 
-The adapter should be described as compatible with common clients only for the features it truly supports.
+The ACME interface should be described as compatible with common clients only for the features it truly supports.
 
 That means:
 

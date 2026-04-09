@@ -2,11 +2,11 @@
 
 > [!TIP]
 > **TL;DR**
-> `acmed` should be implemented as a modular monolith: broker core, worker loop, small plugin boundaries, and a runtime-optional ACME-compatible adapter around the outside.
+> `acmed` should be implemented as a modular monolith: an ACME-facing service around a broker-style core, a worker loop, small plugin boundaries, and an optional broker API for internal use.
 
 Use this document as the source of truth for system shape, component boundaries, and package layout.
 
-Owns: system shape, component boundaries, broker-versus-ACME separation, and package layout.
+Owns: system shape, component boundaries, ACME-versus-broker separation, and package layout.
 
 ## 1. Objective
 
@@ -14,22 +14,23 @@ Build a certificate issuance service that centralizes policy decisions while sta
 
 The architecture should optimize for:
 
+- truthful ACME compatibility for the documented feature set
 - minimal code volume
 - low runtime overhead
 - clear failure handling
 - straightforward local development
-- truthful ACME compatibility without letting ACME shape the core
+- a core model that does not collapse into raw ACME protocol mechanics
 
 ## 2. Scope
 
 In scope:
 
-- broker-native certificate ordering
+- ACME-compatible certificate ordering for the documented supported feature set
 - asynchronous processing
 - pluggable authorizers, challenge providers, and issuers
 - persistent runtime state
 - auditability
-- ACME-compatible adapter enabled only when needed at runtime and still part of the documented MVP scope
+- broker-native certificate ordering as a secondary or optional interface
 
 Out of scope for v1:
 
@@ -40,9 +41,9 @@ Out of scope for v1:
 
 ## 3. Architecture Principles
 
-### 3.1 Broker-first, not ACME-first
+### 3.1 ACME-first at the edge, broker-style in the core
 
-The internal domain model must describe certificate brokering, not ACME protocol mechanics.
+The external product surface should be ACME-first, but the internal domain model should still describe certificate brokering rather than mirroring ACME resources one-to-one.
 
 ### 3.2 Authorization and challenge validation are different
 
@@ -74,19 +75,19 @@ Basic safety must exist in the first implementation, especially for:
 
 | Component | Responsibility |
 |----------|-----------------|
-| Broker API | Accept broker-native orders and return broker-native status |
+| ACME API | Accept ACME requests and return ACME-visible resources and errors |
 | Broker core | Normalize requests, apply policy, and drive state transitions |
 | Worker loop | Poll for work and execute authorization, challenge, and issuance steps |
 | Plugin set | Authorizers, challenge providers, and issuers |
 | Storage | SQLite runtime state plus filesystem artifacts |
-| ACME adapter | Expose the documented ACME contract without reshaping the broker core |
+| Broker API | Expose a secondary broker-native contract for internal integrations when needed |
 
 ### 4.2 Context Diagram
 
 ```mermaid
 graph TD
+  ACMEClient[ACME client] --> ACME[ACME API]
   Client[Internal client] --> BrokerAPI[Broker API]
-  ACMEClient[ACME client] --> ACME[ACME adapter]
   BrokerAPI --> Core[Broker core]
   ACME --> Core
   Core --> DB[(SQLite)]
@@ -121,18 +122,20 @@ Split files only after they become materially too large.
 
 For per-file responsibilities and implementation-oriented rules, use [`implementation-guide.md`](./implementation-guide.md).
 
-`main.py` should act as the broker-first runtime entrypoint:
+`main.py` should act as the ACME-first runtime entrypoint:
 
 - load configuration
 - initialize storage
 - start the worker loop
 - construct the HTTP application
-- expose the broker API, admin inspection endpoints, and health endpoints from one service process for the MVP
-- mount the ACME adapter routes in that same service process when ACME is enabled for the documented ACME slices
+- expose the ACME routes, admin inspection endpoints, and health endpoints from one service process for the MVP
+- mount the broker API in that same service process only when the secondary broker-native interface is enabled or required by the slice
 
-Do not turn `main.py` into a framework-heavy bootstrap layer in the broker-first milestone.
+Do not turn `main.py` into a framework-heavy bootstrap layer in the ACME-first milestone.
 
 ## 5. Core Flow
+
+The same broker-style core flow should serve both the ACME interface and the optional broker API. ACME-specific resources such as accounts, authorizations, and challenges are protocol-facing projections over this shared workflow rather than a separate issuance engine.
 
 ```mermaid
 sequenceDiagram
@@ -160,16 +163,16 @@ sequenceDiagram
   end
 ```
 
-## 6. Workflow Boundary: Broker vs ACME
+## 6. Workflow Boundary: ACME vs Broker
 
-| Area | Broker-native workflow | ACME workflow |
-|------|------------------------|---------------|
-| Request identity | Internal requester identity | ACME account key |
-| Challenge actor | Service may execute challenge-provider logic | Client fulfills challenge |
-| Validation style | Broker-controlled flow | RFC 8555-compatible ACME validation |
-| Main purpose | Internal policy-driven brokering | External client compatibility |
+| Area | ACME workflow | Broker-native workflow |
+|------|---------------|------------------------|
+| Request identity | ACME account key | Internal requester identity |
+| Challenge actor | Client fulfills challenge | Service may execute challenge-provider logic |
+| Validation style | RFC 8555-compatible ACME validation | Broker-controlled flow |
+| Main purpose | External client compatibility | Internal policy-driven brokering |
 
-The ACME adapter must preserve ACME-visible behavior, but the broker core must stay independent of ACME semantics.
+The ACME surface is the primary product contract, but the broker core must stay independent of raw ACME semantics so both interfaces can share one honest implementation model.
 
 ## 7. Related Documents
 
@@ -177,8 +180,10 @@ For topic ownership and navigation, use [`../README.md`](../README.md).
 
 Main companion documents:
 
+- [`acme-api-reference.md`](./acme-api-reference.md): ACME-visible behavior
 - [`data-model.md`](./data-model.md): lifecycle, persistence, and storage
 - [`policy-config.md`](./policy-config.md): configuration and policy matching
-- [`broker-api-reference.md`](./broker-api-reference.md): broker-native HTTP behavior
+- [`implementation-guide.md`](./implementation-guide.md): code-shape guidance and test expectations
+- [`broker-api-reference.md`](./broker-api-reference.md): secondary broker-native HTTP behavior
 - [`security-operations.md`](./security-operations.md): security defaults and runtime posture
 - [`implementation-plan.md`](./implementation-plan.md): sequencing, iteration scope, and MVP completion
