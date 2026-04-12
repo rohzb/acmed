@@ -1,4 +1,7 @@
-"""ACME-first API handlers mapped onto the broker core."""
+"""ACME-first API handlers mapped onto the broker core.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +12,7 @@ import socket
 import ssl
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +53,14 @@ class AcmeApiService:
         self._authorizers = AuthorizerService(config)
 
     def directory(self, base_url: str) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Directory for AcmeApiService.
+
+        Args:
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         body = {
             "newNonce": f"{base_url}/acme/new-nonce",
             "newAccount": f"{base_url}/acme/new-account",
@@ -59,10 +70,24 @@ class AcmeApiService:
         return 200, body, {"Content-Type": "application/json"}
 
     def new_nonce(self) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """New nonce for AcmeApiService.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         nonce = self._storage.create_nonce()
         return 200, {}, {"Replay-Nonce": nonce}
 
     def new_account(self, req: SignedAcmeRequest, base_url: str) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """New account for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         self._validate_signed_request(req, require_jwk=True)
 
         if req.jwk is None or req.jwk_thumbprint is None:
@@ -111,6 +136,16 @@ class AcmeApiService:
         return status, self._account_object(account_id, account, base_url), headers
 
     def get_account(self, req: SignedAcmeRequest, account_id: str, base_url: str) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Get account for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            account_id: ACME account identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         self._validate_signed_request(req, expected_account_id=account_id, require_kid=True)
         account = self._storage.get_acme_account(account_id)
         return 200, self._account_object(account_id, account, base_url), {"Replay-Nonce": self._storage.create_nonce()}
@@ -121,13 +156,40 @@ class AcmeApiService:
         account_id: str,
         base_url: str,
     ) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """List account orders for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            account_id: ACME account identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         self._validate_signed_request(req, expected_account_id=account_id, require_kid=True, require_post_as_get=True)
         order_ids = self._storage.list_account_order_ids(account_id)
         orders = [f"{base_url}/acme/order/{order_id}" for order_id in order_ids]
         return 200, {"orders": orders}, {"Replay-Nonce": self._storage.create_nonce()}
 
     def new_order(self, req: SignedAcmeRequest, base_url: str) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """New order for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         account_id = self._require_account_from_kid(req)
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=1)
+        recent_count = self._storage.count_recent_orders_for_requester(account_id, since=window_start)
+        if recent_count >= self._config.limits.create_order_rate_limit_per_minute:
+            raise AcmeProblemError(
+                "rateLimited",
+                "too many new-order requests for this account",
+                http_status=429,
+            )
         identifiers = req.payload.get("identifiers", [])
         if not isinstance(identifiers, list) or not identifiers:
             raise AcmeProblemError("malformed", "identifiers required")
@@ -217,6 +279,16 @@ class AcmeApiService:
         return status_code, self._order_object(order.id, auth_urls, base_url), headers
 
     def get_order(self, req: SignedAcmeRequest, order_id: str, base_url: str) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Get order for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            order_id: Order identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         account_id = self._require_account_from_kid(req, require_post_as_get=True)
         self._require_order_ownership(account_id, order_id)
         authzs = self._storage.list_acme_authorizations_for_order(order_id)
@@ -229,6 +301,16 @@ class AcmeApiService:
         authorization_id: str,
         base_url: str,
     ) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Get authorization for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            authorization_id: Authorization identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         account_id = self._require_account_from_kid(req, require_post_as_get=True)
         order_id = self._storage.get_order_id_for_authorization(authorization_id)
         self._require_order_ownership(account_id, order_id)
@@ -252,6 +334,16 @@ class AcmeApiService:
         return 200, body, {"Replay-Nonce": self._storage.create_nonce()}
 
     def get_challenge(self, req: SignedAcmeRequest, challenge_id: str, base_url: str) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Get challenge for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            challenge_id: Challenge identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         account_id = self._require_account_from_kid(req, require_post_as_get=True)
         order_id = self._storage.get_order_id_for_challenge(challenge_id)
         self._require_order_ownership(account_id, order_id)
@@ -267,6 +359,16 @@ class AcmeApiService:
         challenge_id: str,
         base_url: str,
     ) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Acknowledge challenge for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            challenge_id: Challenge identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         account_id = self._require_account_from_kid(req)
         order_id = self._storage.get_order_id_for_challenge(challenge_id)
         self._require_order_ownership(account_id, order_id)
@@ -306,6 +408,16 @@ class AcmeApiService:
         order_id: str,
         base_url: str,
     ) -> tuple[int, dict[str, Any], dict[str, str]]:
+        """Finalize order for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            order_id: Order identifier.
+            base_url: Absolute base URL used to build ACME resource links.
+
+        Returns:
+            HTTP status code, JSON body, and response headers.
+        """
         account_id = self._require_account_from_kid(req)
         self._require_order_ownership(account_id, order_id)
 
@@ -313,7 +425,7 @@ class AcmeApiService:
         if not isinstance(csr_b64, str) or not csr_b64.strip():
             raise AcmeProblemError("badCSR", "csr is required for finalize")
 
-        csr = _parse_csr(csr_b64)
+        csr = _parse_csr(csr_b64, self._config.limits.max_csr_bytes)
         requested = set(self._storage.get_order(order_id).dns_names)
         csr_names = _csr_dns_names(csr)
         if requested != csr_names:
@@ -337,6 +449,15 @@ class AcmeApiService:
         req: SignedAcmeRequest,
         order_id: str,
     ) -> tuple[int, str, dict[str, str]]:
+        """Get certificate for AcmeApiService.
+
+        Args:
+            req: Verified ACME request envelope.
+            order_id: Order identifier.
+
+        Returns:
+            HTTP status code, text body, and response headers.
+        """
         account_id = self._require_account_from_kid(req, require_post_as_get=True)
         self._require_order_ownership(account_id, order_id)
 
@@ -612,12 +733,16 @@ def _query_txt_records(name: str) -> set[str]:
     return records
 
 
-def _parse_csr(csr_b64: str) -> x509.CertificateSigningRequest:
+def _parse_csr(csr_b64: str, max_csr_bytes: int) -> x509.CertificateSigningRequest:
     """Decode and parse base64url DER CSR payload."""
     try:
         csr_der = _decode_b64url(csr_b64)
+        if len(csr_der) > max_csr_bytes:
+            raise AcmeProblemError("badCSR", "csr exceeds configured size limit")
         return x509.load_der_x509_csr(csr_der)
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, AcmeProblemError):
+            raise
         raise AcmeProblemError("badCSR", "invalid CSR") from exc
 
 

@@ -1,4 +1,7 @@
-"""Authentication helpers for admin and broker-authenticated paths."""
+"""Authentication helpers for admin and broker-authenticated paths.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +19,14 @@ class AuthService:
         self._config = config
 
     def authenticate_api_token(self, bearer_token: str | None) -> str:
+        """Authenticate api token for AuthService.
+
+        Args:
+            bearer_token: Bearer token from the Authorization header.
+
+        Returns:
+            String result value.
+        """
         if not self._config.identity.api_tokens_enabled:
             raise AuthenticationError("API token authentication disabled")
         if not bearer_token:
@@ -31,5 +42,13 @@ class AuthService:
         raise AuthenticationError("invalid token")
 
     def require_admin_subject(self, subject: str) -> None:
+        """Require admin subject for AuthService.
+
+        Args:
+            subject: Normalized subject string to validate for admin access.
+
+        Returns:
+            `None`.
+        """
         if subject.strip().lower() not in set(self._config.access.admin_subjects):
             raise AuthorizationError("subject is not an admin")

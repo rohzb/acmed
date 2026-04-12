@@ -1,4 +1,7 @@
-"""Source subnet authorizer implementation."""
+"""Source subnet authorizer implementation.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +18,14 @@ class SourceSubnetAuthorizer:
     source_subnets: list[str]
 
     def evaluate(self, request: AuthorizerInput) -> AuthorizerResult:
+        """Evaluate for SourceSubnetAuthorizer.
+
+        Args:
+            request: Normalized request input for authorizer/proof evaluation.
+
+        Returns:
+            Result value matching `AuthorizerResult`.
+        """
         if request.request_ip is None:
             return AuthorizerResult(
                 authorizer_name=self.name,

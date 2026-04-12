@@ -1,4 +1,7 @@
-"""Authorizer plugin registry."""
+"""Authorizer plugin registry.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,7 @@
-"""Shared subprocess helpers for acme.sh/certbot backends."""
+"""Shared subprocess helpers for acme.sh/certbot backends.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 

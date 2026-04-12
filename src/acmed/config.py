@@ -1,9 +1,13 @@
-"""YAML-driven configuration loading and validation for acmed."""
+"""YAML-driven configuration loading and validation for acmed.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+import ipaddress
 from pathlib import Path
 from typing import Any, Literal
 
@@ -23,6 +27,9 @@ class ServerConfig:
     port: int = 8443
     tls_enabled: bool = True
     development_mode: bool = False
+    external_base_url: str | None = None
+    trust_forwarded_headers: bool = False
+    trusted_proxy_cidrs: list[str] | None = None
 
 
 @dataclass(slots=True)
@@ -310,7 +317,17 @@ def _fail_if_inline_token_secret(raw: dict[str, Any]) -> None:
 
 
 def load_config(path: str | Path) -> AppConfig:
-    """Load and validate application configuration from YAML."""
+    """Load and validate application configuration from YAML.
+
+    Args:
+        path: Filesystem path to the YAML configuration file.
+
+    Returns:
+        Fully validated runtime configuration object.
+
+    Raises:
+        ConfigError: If the file cannot be loaded or fails validation.
+    """
     cfg_path = Path(path)
     try:
         raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
@@ -329,6 +346,21 @@ def load_config(path: str | Path) -> AppConfig:
     server = ServerConfig(**raw.get("server", {}))
     if not server.tls_enabled and not server.development_mode:
         raise ConfigError("TLS must be enabled outside development mode")
+    if server.trust_forwarded_headers:
+        if not server.trusted_proxy_cidrs:
+            raise ConfigError(
+                "server.trust_forwarded_headers=true requires server.trusted_proxy_cidrs"
+            )
+        for cidr in server.trusted_proxy_cidrs:
+            try:
+                ipaddress.ip_network(cidr, strict=False)
+            except ValueError as exc:
+                raise ConfigError(f"invalid trusted proxy CIDR: {cidr}") from exc
+    if server.external_base_url:
+        base = server.external_base_url.strip()
+        if "://" not in base:
+            raise ConfigError("server.external_base_url must include scheme")
+        server.external_base_url = base.rstrip("/")
 
     identity = _load_tokens(raw.get("identity", {}))
     access = AccessConfig(admin_subjects=_validate_admin_subjects(raw.get("access", {}).get("admin_subjects", [])))

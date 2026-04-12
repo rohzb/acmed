@@ -1,4 +1,7 @@
-"""Shared authorizer execution service."""
+"""Shared authorizer execution service.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -27,6 +30,14 @@ class AuthorizerService:
         self._registry = registry
 
     def allowed_authorizers(self, request: AuthorizerInput) -> set[str]:
+        """Allowed authorizers for AuthorizerService.
+
+        Args:
+            request: Normalized request input for authorizer/proof evaluation.
+
+        Returns:
+            Set of matched values.
+        """
         allowed: set[str] = set()
         for name, authorizer in self._registry.items():
             result = authorizer.evaluate(request)
@@ -35,6 +46,15 @@ class AuthorizerService:
         return allowed
 
     def require_authorizers(self, names: list[str], request: AuthorizerInput) -> set[str]:
+        """Require authorizers for AuthorizerService.
+
+        Args:
+            names: Required authorizer names that must permit the request.
+            request: Normalized request input for authorizer/proof evaluation.
+
+        Returns:
+            Set of matched values.
+        """
         allowed: set[str] = set()
         for name in names:
             authorizer = self._registry.get(name)

@@ -1,4 +1,7 @@
-"""Authorizer plugin contract."""
+"""Authorizer plugin contract.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -28,4 +31,11 @@ class Authorizer(Protocol):
     name: str
 
     def evaluate(self, request: AuthorizerInput) -> AuthorizerResult:
-        """Evaluate whether requester input is permitted by this authorizer."""
+        """Evaluate whether requester input is permitted by this authorizer.
+
+        Args:
+            request: Normalized requester input and request context.
+
+        Returns:
+            Structured authorizer decision including reason and evidence.
+        """

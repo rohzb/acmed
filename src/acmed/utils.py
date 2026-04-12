@@ -1,4 +1,7 @@
-"""Utility helpers shared across acmed modules."""
+"""Utility helpers shared across acmed modules.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -75,6 +78,13 @@ def normalize_dns_names(values: list[str]) -> list[str]:
 
 
 def sanitize_text(value: str) -> str:
-    """Limit and flatten text for safe storage/logging."""
+    """Limit and flatten text for safe storage/logging.
+
+    Args:
+        value: Raw text value to sanitize.
+
+    Returns:
+        Single-line text truncated to a bounded length.
+    """
 
     return value.replace("\n", " ").replace("\r", " ")[:5000]

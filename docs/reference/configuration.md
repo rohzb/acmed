@@ -16,6 +16,10 @@ server:
   host: 0.0.0.0
   port: 8443
   tls_enabled: true
+  development_mode: false
+  external_base_url: null
+  trust_forwarded_headers: false
+  trusted_proxy_cidrs: []
 
 identity:
   api_tokens:
@@ -161,6 +165,18 @@ Unless a later slice has a documented reason to override them, use these default
 - `orders.max_retries`: `3`
 
 Treat these as explicit documented defaults rather than as placeholders.
+
+### 1.4 Base URL and proxy-header trust
+
+ACME directory and resource URLs are absolute and must not be influenced by untrusted request headers.
+
+Server URL-construction rules:
+
+- prefer `server.external_base_url` when set
+- if `server.external_base_url` is unset, use request host/scheme headers
+- trust `X-Forwarded-Host` and `X-Forwarded-Proto` only when `server.trust_forwarded_headers: true`
+- when `server.trust_forwarded_headers: true`, require `server.trusted_proxy_cidrs` and only honor forwarded headers when the direct peer source IP is within those CIDRs
+- reject startup when forwarded-header trust is enabled without trusted proxy CIDRs
 
 ### 1.3 Identity and admin configuration
 

@@ -1,4 +1,7 @@
-"""Policy resolution and matcher compilation."""
+"""Policy resolution and matcher compilation.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 

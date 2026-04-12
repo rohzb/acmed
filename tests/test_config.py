@@ -94,3 +94,24 @@ def test_trusted_bypass_allowed_in_development_mode(tmp_path: Path, monkeypatch:
     path.write_text(cfg_text, encoding="utf-8")
     cfg = load_config(path)
     assert cfg.policies[0].challenge_validation_mode == "trusted_bypass"
+
+
+def test_forwarded_headers_require_trusted_proxy_cidrs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    base = _base_config(tmp_path).replace("  tls_enabled: true", "  tls_enabled: true\n  trust_forwarded_headers: true")
+    path = tmp_path / "cfg.yml"
+    path.write_text(base, encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(path)
+
+
+def test_forwarded_headers_reject_invalid_proxy_cidr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    base = _base_config(tmp_path).replace(
+        "  tls_enabled: true",
+        "  tls_enabled: true\n  trust_forwarded_headers: true\n  trusted_proxy_cidrs: [invalid-cidr]",
+    )
+    path = tmp_path / "cfg.yml"
+    path.write_text(base, encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(path)

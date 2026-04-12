@@ -1,4 +1,7 @@
-"""ACME JWS parsing and signature verification helpers."""
+"""ACME JWS parsing and signature verification helpers.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -61,7 +64,10 @@ def parse_and_verify_acme_jws(
         raise AcmeProblemError("malformed", "payload must be a string")
     signature_b64 = _require_str(envelope, "signature")
 
-    protected_raw = _b64url_decode(protected_b64)
+    try:
+        protected_raw = _b64url_decode(protected_b64)
+    except Exception as exc:  # noqa: BLE001
+        raise AcmeProblemError("malformed", "protected must be valid base64url") from exc
     try:
         protected = json.loads(protected_raw.decode("utf-8"))
     except Exception as exc:  # noqa: BLE001
@@ -86,7 +92,10 @@ def parse_and_verify_acme_jws(
     if not kid and not jwk:
         raise AcmeProblemError("malformed", "JWS must include kid or jwk")
 
-    payload_raw = _b64url_decode(payload_b64)
+    try:
+        payload_raw = _b64url_decode(payload_b64)
+    except Exception as exc:  # noqa: BLE001
+        raise AcmeProblemError("malformed", "payload must be valid base64url") from exc
     if payload_raw.strip():
         try:
             payload_obj = json.loads(payload_raw.decode("utf-8"))
@@ -97,7 +106,10 @@ def parse_and_verify_acme_jws(
     else:
         payload_obj = {}
 
-    signature = _b64url_decode(signature_b64)
+    try:
+        signature = _b64url_decode(signature_b64)
+    except Exception as exc:  # noqa: BLE001
+        raise AcmeProblemError("malformed", "signature must be valid base64url") from exc
     signing_input = f"{protected_b64}.{payload_b64}".encode("ascii")
 
     if jwk is not None:
@@ -138,6 +150,12 @@ def verify_external_account_binding(
 ) -> str:
     """Verify ACME External Account Binding payload and signature.
 
+    Args:
+        external_account_binding: Parsed JWS object from `externalAccountBinding`.
+        expected_url: Absolute ACME `newAccount` URL expected in the protected header.
+        account_jwk: Account public JWK that must match the embedded EAB payload.
+        secret_lookup: Callback that resolves an EAB HMAC secret by key id.
+
     Returns:
         str: Verified EAB key identifier (`kid`).
     """
@@ -148,7 +166,10 @@ def verify_external_account_binding(
     payload_b64 = _require_str(external_account_binding, "payload")
     signature_b64 = _require_str(external_account_binding, "signature")
 
-    protected = json.loads(_b64url_decode(protected_b64).decode("utf-8"))
+    try:
+        protected = json.loads(_b64url_decode(protected_b64).decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise AcmeProblemError("malformed", "invalid EAB protected header") from exc
     if _require_str(protected, "alg") != "HS256":
         raise AcmeProblemError("badSignatureAlgorithm", "EAB requires HS256")
 
@@ -165,7 +186,10 @@ def verify_external_account_binding(
         raise AcmeProblemError("malformed", "EAB payload does not match account key")
 
     signing_input = f"{protected_b64}.{payload_b64}".encode("ascii")
-    provided = _b64url_decode(signature_b64)
+    try:
+        provided = _b64url_decode(signature_b64)
+    except Exception as exc:  # noqa: BLE001
+        raise AcmeProblemError("malformed", "invalid EAB signature encoding") from exc
     computed = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
     if not hmac.compare_digest(provided, computed):
         raise AcmeProblemError("unauthorized", "EAB signature verification failed", http_status=403)
@@ -173,7 +197,14 @@ def verify_external_account_binding(
 
 
 def jwk_thumbprint(jwk: dict[str, Any]) -> str:
-    """Compute RFC7638 JWK thumbprint."""
+    """Compute an RFC 7638 JWK thumbprint for an EC or RSA key.
+
+    Args:
+        jwk: JWK mapping containing the required key-type fields.
+
+    Returns:
+        Base64url-encoded SHA-256 thumbprint value.
+    """
     kty = jwk.get("kty")
     if kty == "EC":
         canonical = {

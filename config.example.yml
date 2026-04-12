@@ -22,6 +22,15 @@ server:
   # Keep false in production.
   development_mode: true
 
+  # Optional explicit public base URL for ACME links.
+  # If set, acmed will use this value instead of host/proxy headers.
+  # external_base_url: https://acme.lab.example.org
+
+  # Trust X-Forwarded-* headers only when requests arrive from one of these CIDRs.
+  # Keep false unless running behind a trusted reverse proxy.
+  trust_forwarded_headers: false
+  # trusted_proxy_cidrs: [10.20.30.0/24]
+
 identity:
   api_tokens:
     # Token auth for admin and broker-style endpoints.

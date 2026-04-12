@@ -6,6 +6,7 @@ This module wires configuration, storage, worker loop, and a small WSGI app.
 from __future__ import annotations
 
 import json
+import ipaddress
 import signal
 import sys
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ from .acme_jws import parse_and_verify_acme_jws
 from .api import ApiService
 from .auth import AuthService
 from .config import AppConfig, load_config
-from .errors import AcmedError
+from .errors import AcmedError, AcmeProblemError
 from .storage import Storage
 from .worker import Worker
 
@@ -36,7 +37,14 @@ class AppRuntime:
 
 
 def build_runtime(config_path: str) -> AppRuntime:
-    """Build configured runtime services from YAML configuration path."""
+    """Build configured runtime services from a YAML configuration file.
+
+    Args:
+        config_path: Filesystem path to the acmed configuration YAML.
+
+    Returns:
+        Initialized runtime dependency container.
+    """
     config = load_config(config_path)
     storage = Storage(config.storage.sqlite_path, config.storage.artifacts_root)
     auth_service = AuthService(config)
@@ -54,11 +62,18 @@ def build_runtime(config_path: str) -> AppRuntime:
 
 
 def build_wsgi_app(runtime: AppRuntime):
-    """Create WSGI application callable bound to runtime services."""
+    """Create a WSGI application callable bound to runtime services.
+
+    Args:
+        runtime: Runtime dependency container with configured services.
+
+    Returns:
+        WSGI callable that handles acmed API and ACME routes.
+    """
     def app(environ: dict[str, Any], start_response):
         method = environ.get("REQUEST_METHOD", "GET")
         path = environ.get("PATH_INFO", "")
-        base_url = _base_url(environ)
+        base_url = _base_url(environ, runtime.config)
         environ["acmed.storage"] = runtime.storage
         try:
             if method == "GET" and path == "/healthz":
@@ -78,41 +93,41 @@ def build_wsgi_app(runtime: AppRuntime):
                 return _respond_json(start_response, status, body, headers, include_body=(method != "HEAD"))
 
             if method == "POST" and path == "/acme/new-account":
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.new_account(req, base_url=base_url))
 
             if path.startswith("/acme/account/") and path.endswith("/orders") and method == "POST":
                 account_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.list_account_orders(req, account_id, base_url))
 
             if path.startswith("/acme/account/") and method == "POST":
                 account_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.get_account(req, account_id, base_url))
 
             if method == "POST" and path == "/acme/new-order":
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.new_order(req, base_url=base_url))
 
             if path.startswith("/acme/order/") and path.endswith("/finalize") and method == "POST":
                 order_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.finalize_order(req, order_id, base_url))
 
             if path.startswith("/acme/order/") and method == "POST":
                 order_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.get_order(req, order_id, base_url))
 
             if path.startswith("/acme/authz/") and method == "POST":
                 authz_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 return _respond_json(start_response, *runtime.acme_service.get_authorization(req, authz_id, base_url))
 
             if path.startswith("/acme/challenge/") and method == "POST":
                 challenge_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 if req.payload_raw.strip():
                     return _respond_json(
                         start_response,
@@ -122,7 +137,7 @@ def build_wsgi_app(runtime: AppRuntime):
 
             if path.startswith("/acme/cert/") and method == "POST":
                 order_id = path.split("/")[3]
-                req = _parse_signed_request(environ)
+                req = _parse_signed_request(environ, runtime.config)
                 status, text_body, headers = runtime.acme_service.get_certificate(req, order_id)
                 return _respond_text(start_response, status, text_body, headers)
 
@@ -145,11 +160,21 @@ def build_wsgi_app(runtime: AppRuntime):
                 {"error": exc.code, "message": exc.message},
                 {"Content-Type": "application/json"},
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
+            if path.startswith("/acme/"):
+                return _respond_json(
+                    start_response,
+                    500,
+                    {
+                        "type": "urn:ietf:params:acme:error:serverInternal",
+                        "detail": "internal ACME server error",
+                    },
+                    {"Content-Type": "application/problem+json", "Replay-Nonce": runtime.storage.create_nonce()},
+                )
             return _respond_json(
                 start_response,
                 500,
-                {"error": "internal_error", "message": str(exc)},
+                {"error": "internal_error", "message": "internal server error"},
                 {"Content-Type": "application/json"},
             )
 
@@ -157,7 +182,14 @@ def build_wsgi_app(runtime: AppRuntime):
 
 
 def run(config_path: str) -> None:
-    """Run ACME service process with worker loop and WSGI server."""
+    """Run the acmed process with worker loop and WSGI server.
+
+    Args:
+        config_path: Filesystem path to the acmed configuration YAML.
+
+    Returns:
+        `None` after the process exits.
+    """
     runtime = build_runtime(config_path)
     runtime.worker.start()
 
@@ -179,10 +211,10 @@ def run(config_path: str) -> None:
     runtime.storage.close()
 
 
-def _parse_signed_request(environ: dict[str, Any]) -> SignedAcmeRequest:
+def _parse_signed_request(environ: dict[str, Any], config: AppConfig) -> SignedAcmeRequest:
     """Parse and verify incoming ACME JWS request."""
-    body = _read_body(environ)
-    base_url = _base_url(environ)
+    body = _read_body(environ, config.limits.max_request_body_bytes)
+    base_url = _base_url(environ, config)
     expected_url = f"{base_url}{environ.get('PATH_INFO', '')}"
 
     def _resolve_account_jwk(kid: str) -> dict[str, Any] | None:
@@ -208,19 +240,49 @@ def _parse_signed_request(environ: dict[str, Any]) -> SignedAcmeRequest:
     )
 
 
-def _read_body(environ: dict[str, Any]) -> bytes:
+def _read_body(environ: dict[str, Any], max_bytes: int) -> bytes:
     """Read request body from WSGI input stream."""
-    length = int(environ.get("CONTENT_LENGTH") or "0")
+    raw_length = environ.get("CONTENT_LENGTH") or "0"
+    try:
+        length = int(raw_length)
+    except ValueError as exc:
+        raise AcmeProblemError("malformed", "invalid Content-Length header") from exc
+    if length < 0:
+        raise AcmeProblemError("malformed", "invalid Content-Length header")
+    if length > max_bytes:
+        raise AcmeProblemError("malformed", "request body exceeds configured limit", http_status=413)
     return environ["wsgi.input"].read(length)
 
 
-def _base_url(environ: dict[str, Any]) -> str:
+def _base_url(environ: dict[str, Any], config: AppConfig) -> str:
     """Build absolute base URL from forwarded or server headers."""
-    scheme = environ.get("HTTP_X_FORWARDED_PROTO") or environ.get("wsgi.url_scheme", "https")
-    host = environ.get("HTTP_X_FORWARDED_HOST") or environ.get("HTTP_HOST")
+    if config.server.external_base_url:
+        return config.server.external_base_url
+
+    trust_forwarded = bool(config.server.trust_forwarded_headers) and _is_trusted_proxy_request(environ, config)
+    scheme = environ.get("wsgi.url_scheme", "https")
+    host = environ.get("HTTP_HOST")
+    if trust_forwarded:
+        scheme = environ.get("HTTP_X_FORWARDED_PROTO") or scheme
+        host = environ.get("HTTP_X_FORWARDED_HOST") or host
     if host:
         return f"{scheme}://{host}"
     return f"{scheme}://{environ.get('SERVER_NAME')}:{environ.get('SERVER_PORT')}"
+
+
+def _is_trusted_proxy_request(environ: dict[str, Any], config: AppConfig) -> bool:
+    """Return whether the direct peer IP is within configured trusted proxy CIDRs."""
+    remote_addr = environ.get("REMOTE_ADDR")
+    if not isinstance(remote_addr, str) or not remote_addr.strip():
+        return False
+    try:
+        remote_ip = ipaddress.ip_address(remote_addr.strip())
+    except ValueError:
+        return False
+    for cidr in config.server.trusted_proxy_cidrs or []:
+        if remote_ip in ipaddress.ip_network(cidr, strict=False):
+            return True
+    return False
 
 
 def _respond_json(
@@ -256,6 +318,8 @@ def _reason_phrase(status: int) -> str:
         403: "Forbidden",
         404: "Not Found",
         409: "Conflict",
+        413: "Payload Too Large",
+        429: "Too Many Requests",
         500: "Internal Server Error",
     }.get(status, "OK")
 

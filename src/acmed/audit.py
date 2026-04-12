@@ -1,4 +1,7 @@
-"""Audit event helpers."""
+"""Audit event helpers.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +22,14 @@ SENSITIVE_MARKERS = [
 
 
 def redact_sensitive(value: str) -> str:
-    """Redact secret-bearing text fragments from audit messages."""
+    """Redact secret-bearing text fragments from audit messages.
+
+    Args:
+        value: Raw message content that may contain secrets.
+
+    Returns:
+        Sanitized text or `[REDACTED]` when sensitive markers are detected.
+    """
     text = sanitize_text(value)
     lowered = text.lower()
     for marker in SENSITIVE_MARKERS:
@@ -36,7 +46,19 @@ def make_audit_event(
     message: str,
     metadata: dict[str, Any] | None = None,
 ) -> AuditEvent:
-    """Create normalized audit event with redacted message content."""
+    """Create a normalized audit event with redacted message content.
+
+    Args:
+        order_id: Associated order id, if the event is order-scoped.
+        event_type: Stable event type identifier.
+        actor_type: Actor category such as `worker` or `service`.
+        actor_id: Stable actor identifier.
+        message: Human-readable event message.
+        metadata: Optional structured metadata payload.
+
+    Returns:
+        Ready-to-persist typed audit event record.
+    """
     safe_metadata = metadata or {}
     return AuditEvent(
         id=str(uuid.uuid4()),

@@ -1,4 +1,7 @@
-"""SQLite persistence and artifact storage for acmed."""
+"""SQLite persistence and artifact storage for acmed.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -67,6 +70,11 @@ class Storage:
                 raise StorageError(f"sqlite error: {exc}") from exc
 
     def initialize_schema(self) -> None:
+        """Initialize schema for Storage.
+
+        Returns:
+            `None`.
+        """
         schema = """
         CREATE TABLE IF NOT EXISTS orders (
           id TEXT PRIMARY KEY,
@@ -209,6 +217,11 @@ class Storage:
                 )
 
     def close(self) -> None:
+        """Close for Storage.
+
+        Returns:
+            `None`.
+        """
         self._conn.close()
 
     def _row_to_order(self, row: sqlite3.Row) -> Order:
@@ -249,6 +262,20 @@ class Storage:
         max_retries: int,
         ttl_seconds: int,
     ) -> tuple[Order, bool]:
+        """Create order for Storage.
+
+        Args:
+            request: Normalized request input for authorizer/proof evaluation.
+            issuer_name: Issuer profile name.
+            proof_handler_name: Proof handler name.
+            challenge_validation_mode: Challenge validation mode for created order rows.
+            private_key_policy: Selected private-key handling policy.
+            max_retries: Maximum retry count for the order.
+            ttl_seconds: Order time-to-live in seconds.
+
+        Returns:
+            Tuple of the matched/created order and a creation flag.
+        """
         order_id = str(uuid.uuid4())
         now = utc_now()
         csr_source = CsrSource.CLIENT_PROVIDED if request.csr_pem else CsrSource.SERVICE_GENERATED
@@ -337,19 +364,68 @@ class Storage:
             return self._row_to_order(created), True
 
     def get_order(self, order_id: str) -> Order:
+        """Get order for Storage.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            Persisted order record.
+        """
         row = self._conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
         if row is None:
             raise NotFoundError(f"order {order_id} not found")
         return self._row_to_order(row)
 
     def list_orders(self, limit: int = 100) -> list[Order]:
+        """List orders for Storage.
+
+        Args:
+            limit: Maximum number of records to return.
+
+        Returns:
+            List of records matching the query.
+        """
         rows = self._conn.execute(
             "SELECT * FROM orders ORDER BY created_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
         return [self._row_to_order(row) for row in rows]
 
+    def count_recent_orders_for_requester(self, requester_id: str, since: datetime) -> int:
+        """Count recent orders for requester for Storage.
+
+        Args:
+            requester_id: Stable requester identity.
+            since: Lower bound timestamp for row selection.
+
+        Returns:
+            Integer result value.
+        """
+        row = self._conn.execute(
+            """
+            SELECT COUNT(1) AS n
+            FROM orders
+            WHERE requester_id = ?
+              AND created_at >= ?
+            """,
+            (requester_id, _dt_to_text(since)),
+        ).fetchone()
+        if not row:
+            return 0
+        return int(row["n"])
+
     def transition_order_status(self, order_id: str, from_status: OrderStatus, to_status: OrderStatus) -> None:
+        """Transition order status for Storage.
+
+        Args:
+            order_id: Order identifier.
+            from_status: Current required order status.
+            to_status: Target order status to transition to.
+
+        Returns:
+            `None`.
+        """
         if to_status not in ALLOWED_TRANSITIONS[from_status]:
             raise StorageError(f"illegal state transition: {from_status}->{to_status}")
 
@@ -367,6 +443,15 @@ class Storage:
                 raise StorageError(f"transition failed for {order_id}")
 
     def claim_next_order(self, worker_id: str, claim_ttl_seconds: int) -> Order | None:
+        """Claim next order for Storage.
+
+        Args:
+            worker_id: Worker identifier used for claims and ownership.
+            claim_ttl_seconds: Claim lease duration in seconds.
+
+        Returns:
+            Claimed order, or `None` when no eligible order exists.
+        """
         now = utc_now()
         now_text = _dt_to_text(now)
         expires_text = _dt_to_text(now + timedelta(seconds=claim_ttl_seconds))
@@ -423,6 +508,15 @@ class Storage:
             return self._row_to_order(claimed_row)
 
     def release_claim(self, order_id: str, worker_id: str) -> None:
+        """Release claim for Storage.
+
+        Args:
+            order_id: Order identifier.
+            worker_id: Worker identifier used for claims and ownership.
+
+        Returns:
+            `None`.
+        """
         with self._tx() as conn:
             conn.execute(
                 """
@@ -434,6 +528,16 @@ class Storage:
             )
 
     def mark_terminal(self, order_id: str, status: OrderStatus, error_message: str | None = None) -> None:
+        """Mark terminal for Storage.
+
+        Args:
+            order_id: Order identifier.
+            status: Status value to persist.
+            error_message: Failure detail to persist with the order.
+
+        Returns:
+            `None`.
+        """
         if status not in {OrderStatus.ISSUED, OrderStatus.FAILED, OrderStatus.DENIED, OrderStatus.EXPIRED}:
             raise StorageError(f"unsupported terminal status: {status}")
 
@@ -449,6 +553,14 @@ class Storage:
             )
 
     def requeue_retry(self, order_id: str) -> None:
+        """Requeue retry for Storage.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            `None`.
+        """
         with self._tx() as conn:
             row = conn.execute(
                 "SELECT retry_count, max_retries, status FROM orders WHERE id = ?",
@@ -472,6 +584,11 @@ class Storage:
             )
 
     def expire_eligible_orders(self) -> int:
+        """Expire eligible orders for Storage.
+
+        Returns:
+            Integer result value.
+        """
         now = _dt_to_text(utc_now())
         with self._tx() as conn:
             changed = conn.execute(
@@ -499,6 +616,23 @@ class Storage:
         finished_at: datetime,
         result_code: str,
     ) -> None:
+        """Write issuance attempt for Storage.
+
+        Args:
+            order_id: Order identifier.
+            issuer_name: Issuer profile name.
+            attempt_number: Input value for `attempt_number`.
+            command: Input value for `command`.
+            exit_code: Input value for `exit_code`.
+            stdout_path: Input value for `stdout_path`.
+            stderr_path: Input value for `stderr_path`.
+            started_at: Input value for `started_at`.
+            finished_at: Input value for `finished_at`.
+            result_code: Input value for `result_code`.
+
+        Returns:
+            `None`.
+        """
         with self._tx() as conn:
             conn.execute(
                 """
@@ -533,6 +667,21 @@ class Storage:
         metadata: dict[str, Any],
         created_at: datetime,
     ) -> None:
+        """Write audit event for Storage.
+
+        Args:
+            event_id: Audit event identifier.
+            order_id: Order identifier.
+            event_type: Audit event type identifier.
+            actor_type: Audit actor type label.
+            actor_id: Audit actor identity.
+            message: Human-readable audit message.
+            metadata: Structured metadata to persist with the audit event.
+            created_at: Creation timestamp for the audit event.
+
+        Returns:
+            `None`.
+        """
         with self._tx() as conn:
             conn.execute(
                 """
@@ -555,12 +704,31 @@ class Storage:
             )
 
     def create_artifact_dir(self, order_id: str) -> Path:
+        """Create artifact dir for Storage.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            Filesystem path value.
+        """
         path = self._artifacts_root / order_id
         path.mkdir(mode=0o700, parents=True, exist_ok=True)
         os.chmod(path, 0o700)
         return path
 
     def write_artifact(self, order_id: str, filename: str, content: str, sensitive: bool = False) -> Path:
+        """Write artifact for Storage.
+
+        Args:
+            order_id: Order identifier.
+            filename: Artifact filename inside the order artifact directory.
+            content: Artifact content to write.
+            sensitive: Whether file permissions should be restricted for secret material.
+
+        Returns:
+            Filesystem path value.
+        """
         order_dir = self.create_artifact_dir(order_id)
         path = order_dir / filename
         temp_path = order_dir / f".{filename}.tmp"
@@ -572,6 +740,11 @@ class Storage:
         return path
 
     def create_nonce(self) -> str:
+        """Create nonce for Storage.
+
+        Returns:
+            String result value.
+        """
         nonce = uuid.uuid4().hex
         with self._tx() as conn:
             conn.execute(
@@ -581,6 +754,14 @@ class Storage:
         return nonce
 
     def consume_nonce(self, nonce: str) -> bool:
+        """Consume nonce for Storage.
+
+        Args:
+            nonce: Nonce value to consume or validate.
+
+        Returns:
+            Boolean result value.
+        """
         with self._tx() as conn:
             row = conn.execute(
                 "SELECT used FROM nonces WHERE nonce = ?",
@@ -598,6 +779,17 @@ class Storage:
         contact: list[str],
         eab_kid: str | None,
     ) -> dict[str, Any]:
+        """Get or create acme account for Storage.
+
+        Args:
+            jwk_thumbprint: RFC7638 JWK thumbprint identifier.
+            jwk: JWK mapping to persist for the account.
+            contact: ACME contact list for the account.
+            eab_kid: External account binding key identifier.
+
+        Returns:
+            Mapping containing the requested data.
+        """
         with self._tx() as conn:
             row = conn.execute(
                 "SELECT * FROM acme_accounts WHERE jwk_thumbprint = ?",
@@ -631,12 +823,28 @@ class Storage:
             return dict(created)
 
     def get_acme_account(self, account_id: str) -> dict[str, Any]:
+        """Get acme account for Storage.
+
+        Args:
+            account_id: ACME account identifier.
+
+        Returns:
+            Mapping containing the requested data.
+        """
         row = self._conn.execute("SELECT * FROM acme_accounts WHERE id = ?", (account_id,)).fetchone()
         if not row:
             raise NotFoundError(f"account {account_id} not found")
         return dict(row)
 
     def get_acme_account_jwk(self, account_id: str) -> dict[str, Any] | None:
+        """Get acme account jwk for Storage.
+
+        Args:
+            account_id: ACME account identifier.
+
+        Returns:
+            Mapping containing the requested data.
+        """
         row = self._conn.execute(
             "SELECT jwk_json FROM acme_accounts WHERE id = ?",
             (account_id,),
@@ -649,6 +857,14 @@ class Storage:
             return None
 
     def find_acme_account_by_thumbprint(self, jwk_thumbprint: str) -> dict[str, Any] | None:
+        """Find acme account by thumbprint for Storage.
+
+        Args:
+            jwk_thumbprint: RFC7638 JWK thumbprint identifier.
+
+        Returns:
+            Mapping containing the requested data.
+        """
         row = self._conn.execute(
             "SELECT * FROM acme_accounts WHERE jwk_thumbprint = ?",
             (jwk_thumbprint,),
@@ -656,6 +872,15 @@ class Storage:
         return dict(row) if row else None
 
     def add_acme_account_order_link(self, account_id: str, order_id: str) -> None:
+        """Add acme account order link for Storage.
+
+        Args:
+            account_id: ACME account identifier.
+            order_id: Order identifier.
+
+        Returns:
+            `None`.
+        """
         with self._tx() as conn:
             conn.execute(
                 """
@@ -666,6 +891,15 @@ class Storage:
             )
 
     def account_owns_order(self, account_id: str, order_id: str) -> bool:
+        """Account owns order for Storage.
+
+        Args:
+            account_id: ACME account identifier.
+            order_id: Order identifier.
+
+        Returns:
+            Boolean result value.
+        """
         row = self._conn.execute(
             """
             SELECT 1 FROM acme_account_orders
@@ -676,6 +910,14 @@ class Storage:
         return row is not None
 
     def list_account_order_ids(self, account_id: str) -> list[str]:
+        """List account order ids for Storage.
+
+        Args:
+            account_id: ACME account identifier.
+
+        Returns:
+            List of records matching the query.
+        """
         rows = self._conn.execute(
             """
             SELECT order_id FROM acme_account_orders
@@ -687,6 +929,15 @@ class Storage:
         return [row["order_id"] for row in rows]
 
     def create_acme_authorization(self, order_id: str, identifier_value: str) -> str:
+        """Create acme authorization for Storage.
+
+        Args:
+            order_id: Order identifier.
+            identifier_value: DNS identifier value for the authorization row.
+
+        Returns:
+            String result value.
+        """
         authz_id = str(uuid.uuid4())
         wildcard = int(identifier_value.startswith("*."))
         with self._tx() as conn:
@@ -708,6 +959,15 @@ class Storage:
         return authz_id
 
     def create_acme_challenge(self, authorization_id: str, challenge_type: str) -> str:
+        """Create acme challenge for Storage.
+
+        Args:
+            authorization_id: Authorization identifier.
+            challenge_type: ACME challenge type to create.
+
+        Returns:
+            String result value.
+        """
         challenge_id = str(uuid.uuid4())
         token = uuid.uuid4().hex
         with self._tx() as conn:
@@ -724,6 +984,14 @@ class Storage:
         return challenge_id
 
     def list_acme_authorizations_for_order(self, order_id: str) -> list[dict[str, Any]]:
+        """List acme authorizations for order for Storage.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            List of records matching the query.
+        """
         rows = self._conn.execute(
             "SELECT * FROM acme_authorizations WHERE order_id = ? ORDER BY id",
             (order_id,),
@@ -731,6 +999,14 @@ class Storage:
         return [dict(row) for row in rows]
 
     def list_acme_challenges_for_authorization(self, authorization_id: str) -> list[dict[str, Any]]:
+        """List acme challenges for authorization for Storage.
+
+        Args:
+            authorization_id: Authorization identifier.
+
+        Returns:
+            List of records matching the query.
+        """
         rows = self._conn.execute(
             "SELECT * FROM acme_challenges WHERE authorization_id = ? ORDER BY id",
             (authorization_id,),
@@ -738,6 +1014,14 @@ class Storage:
         return [dict(row) for row in rows]
 
     def get_acme_challenge(self, challenge_id: str) -> dict[str, Any]:
+        """Get acme challenge for Storage.
+
+        Args:
+            challenge_id: Challenge identifier.
+
+        Returns:
+            Mapping containing the requested data.
+        """
         row = self._conn.execute("SELECT * FROM acme_challenges WHERE id = ?", (challenge_id,)).fetchone()
         if not row:
             raise NotFoundError(f"challenge {challenge_id} not found")
@@ -750,6 +1034,17 @@ class Storage:
         error_code: str | None = None,
         error_detail: str | None = None,
     ) -> None:
+        """Set acme challenge status for Storage.
+
+        Args:
+            challenge_id: Challenge identifier.
+            status: Status value to persist.
+            error_code: ACME error code for invalid challenge status.
+            error_detail: Human-readable challenge validation error detail.
+
+        Returns:
+            `None`.
+        """
         validated_at = _dt_to_text(utc_now()) if status == "valid" else None
         with self._tx() as conn:
             conn.execute(
@@ -773,6 +1068,15 @@ class Storage:
             )
 
     def set_order_finalize_requested(self, order_id: str, enabled: bool) -> None:
+        """Set order finalize requested for Storage.
+
+        Args:
+            order_id: Order identifier.
+            enabled: Whether finalize was requested for the order.
+
+        Returns:
+            `None`.
+        """
         with self._tx() as conn:
             conn.execute(
                 "UPDATE orders SET finalize_requested = ?, updated_at = ? WHERE id = ?",
@@ -780,6 +1084,14 @@ class Storage:
             )
 
     def is_order_finalize_requested(self, order_id: str) -> bool:
+        """Is order finalize requested for Storage.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            Boolean result value.
+        """
         row = self._conn.execute(
             "SELECT finalize_requested FROM orders WHERE id = ?",
             (order_id,),
@@ -789,6 +1101,14 @@ class Storage:
         return bool(row["finalize_requested"])
 
     def get_order_id_for_authorization(self, authorization_id: str) -> str:
+        """Get order id for authorization for Storage.
+
+        Args:
+            authorization_id: Authorization identifier.
+
+        Returns:
+            String result value.
+        """
         row = self._conn.execute(
             "SELECT order_id FROM acme_authorizations WHERE id = ?",
             (authorization_id,),
@@ -798,6 +1118,14 @@ class Storage:
         return str(row["order_id"])
 
     def get_order_id_for_challenge(self, challenge_id: str) -> str:
+        """Get order id for challenge for Storage.
+
+        Args:
+            challenge_id: Challenge identifier.
+
+        Returns:
+            String result value.
+        """
         row = self._conn.execute(
             """
             SELECT a.order_id
@@ -812,6 +1140,14 @@ class Storage:
         return str(row["order_id"])
 
     def get_account_id_for_order(self, order_id: str) -> str | None:
+        """Get account id for order for Storage.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            Result value matching `str | None`.
+        """
         row = self._conn.execute(
             "SELECT account_id FROM acme_account_orders WHERE order_id = ? LIMIT 1",
             (order_id,),
@@ -819,6 +1155,14 @@ class Storage:
         return str(row["account_id"]) if row else None
 
     def get_challenge_validation_context(self, challenge_id: str) -> dict[str, Any]:
+        """Get challenge validation context for Storage.
+
+        Args:
+            challenge_id: Challenge identifier.
+
+        Returns:
+            Mapping containing the requested data.
+        """
         row = self._conn.execute(
             """
             SELECT c.id AS challenge_id, c.challenge_type, c.token, c.status AS challenge_status,

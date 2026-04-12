@@ -1,7 +1,9 @@
+import base64
 from pathlib import Path
 
 import pytest
 
+import acmed.acme_api as acme_api_module
 from acmed.acme_api import AcmeApiService, SignedAcmeRequest
 from acmed.config import load_config
 from acmed.errors import AcmeProblemError
@@ -115,3 +117,46 @@ def test_new_order_accepts_when_preauth_authorizer_matches(tmp_path: Path, monke
     status, body, _headers = service.new_order(req, "https://acme.example.org")
     assert status == 201
     assert body["status"] in {"pending", "ready"}
+
+
+def test_new_order_respects_per_account_rate_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    cfg = load_config(_write_cfg(tmp_path))
+    cfg.limits.create_order_rate_limit_per_minute = 1
+    storage = Storage(cfg.storage.sqlite_path, cfg.storage.artifacts_root)
+    service = AcmeApiService(cfg, storage)
+
+    account_id = _seed_account(storage)
+    req = SignedAcmeRequest(
+        url="https://acme.example.org/acme/new-order",
+        nonce=storage.create_nonce(),
+        payload={"identifiers": [{"type": "dns", "value": "host1.lab.example.org"}]},
+        payload_raw=b'{"identifiers":[]}',
+        kid=f"https://acme.example.org/acme/account/{account_id}",
+        request_ip="10.0.0.20",
+    )
+
+    status, _body, _headers = service.new_order(req, "https://acme.example.org")
+    assert status == 201
+
+    req2 = SignedAcmeRequest(
+        url="https://acme.example.org/acme/new-order",
+        nonce=storage.create_nonce(),
+        payload={"identifiers": [{"type": "dns", "value": "host1.lab.example.org"}]},
+        payload_raw=b'{"identifiers":[]}',
+        kid=f"https://acme.example.org/acme/account/{account_id}",
+        request_ip="10.0.0.20",
+    )
+    with pytest.raises(AcmeProblemError) as exc:
+        service.new_order(req2, "https://acme.example.org")
+    assert exc.value.code == "rateLimited"
+    assert exc.value.http_status == 429
+
+
+def test_parse_csr_rejects_oversized_payload_before_parsing():
+    oversized_der = b"A" * 9
+    csr_b64 = base64.urlsafe_b64encode(oversized_der).decode("ascii").rstrip("=")
+    with pytest.raises(AcmeProblemError) as exc:
+        acme_api_module._parse_csr(csr_b64, max_csr_bytes=8)
+    assert exc.value.code == "badCSR"
+    assert "size limit" in exc.value.message

@@ -1,4 +1,7 @@
-"""Proof-handler plugin contract."""
+"""Proof-handler plugin contract.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 

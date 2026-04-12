@@ -1,4 +1,7 @@
-"""Issuer backend registry and factory."""
+"""Issuer backend registry and factory.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 

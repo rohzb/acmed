@@ -1,4 +1,7 @@
-"""No-proof handler implementation."""
+"""No-proof handler implementation.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 

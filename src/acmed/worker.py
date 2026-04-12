@@ -48,17 +48,32 @@ class Worker:
                 )
 
     def start(self) -> None:
+        """Start for Worker.
+
+        Returns:
+            `None`.
+        """
         if self._thread and self._thread.is_alive():
             return
         self._thread = threading.Thread(target=self.run_forever, name=self._worker_id, daemon=True)
         self._thread.start()
 
     def stop(self) -> None:
+        """Stop for Worker.
+
+        Returns:
+            `None`.
+        """
         self._stop.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
 
     def run_forever(self) -> None:
+        """Run forever for Worker.
+
+        Returns:
+            `None`.
+        """
         while not self._stop.is_set():
             self._storage.expire_eligible_orders()
             order = self._storage.claim_next_order(

@@ -5,7 +5,10 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
-from acmed.acme_jws import jwk_thumbprint, parse_and_verify_acme_jws
+import pytest
+
+from acmed.acme_jws import jwk_thumbprint, parse_and_verify_acme_jws, verify_external_account_binding
+from acmed.errors import AcmeProblemError
 
 
 def _b64url(data: bytes) -> str:
@@ -113,3 +116,29 @@ def test_parse_and_verify_accepts_empty_payload_for_post_as_get():
     assert verified.kid == "https://acme.example.org/acme/account/acc-1"
     assert verified.payload_raw == b""
     assert verified.payload_obj == {}
+
+
+def test_parse_and_verify_rejects_invalid_protected_base64url():
+    body = json.dumps({"protected": "%%%not-b64%%%", "payload": "", "signature": "AA"}).encode("utf-8")
+    with pytest.raises(AcmeProblemError) as exc:
+        parse_and_verify_acme_jws(
+            body=body,
+            key_resolver=lambda kid: None,
+            expected_url="https://acme.example.org/acme/new-order",
+        )
+    assert exc.value.code == "malformed"
+
+
+def test_verify_external_account_binding_rejects_invalid_protected_header():
+    with pytest.raises(AcmeProblemError) as exc:
+        verify_external_account_binding(
+            external_account_binding={
+                "protected": "%%%bad%%%",
+                "payload": "",
+                "signature": "",
+            },
+            expected_url="https://acme.example.org/acme/new-account",
+            account_jwk={"kty": "EC", "crv": "P-256", "x": "AA", "y": "BB"},
+            secret_lookup=lambda kid: "secret",
+        )
+    assert exc.value.code == "malformed"

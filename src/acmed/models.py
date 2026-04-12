@@ -1,4 +1,7 @@
-"""Core domain models and enums for acmed."""
+"""Core domain models and enums for acmed.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +13,11 @@ from typing import Any
 
 
 def utc_now() -> datetime:
-    """Return current UTC time with timezone information."""
+    """Return current UTC time with timezone information.
+
+    Returns:
+        Timezone-aware current UTC timestamp.
+    """
     return datetime.now(timezone.utc)
 
 
@@ -186,7 +193,19 @@ def compute_dedupe_key(
     private_key_policy: PrivateKeyPolicy,
     challenge_validation_mode: str = "strict",
 ) -> str:
-    """Compute server-side dedupe key from normalized fields only."""
+    """Compute a deterministic server-side dedupe key for order requests.
+
+    Args:
+        requester_id: Stable requester identity.
+        dns_names: Requested DNS names.
+        issuer_name: Selected issuer profile name.
+        csr_source: CSR source mode for the order.
+        private_key_policy: Key-handling policy for issuance.
+        challenge_validation_mode: Challenge validation mode selected by policy.
+
+    Returns:
+        Hex-encoded SHA-256 deduplication key.
+    """
     stable_names = sorted(set(dns_names))
     payload = "\n".join(
         [
@@ -202,5 +221,12 @@ def compute_dedupe_key(
 
 
 def new_order_expiry(ttl_seconds: int) -> datetime:
-    """Compute order expiration timestamp from TTL seconds."""
+    """Compute an order expiration timestamp from TTL seconds.
+
+    Args:
+        ttl_seconds: Time-to-live in seconds.
+
+    Returns:
+        UTC timestamp representing order expiration time.
+    """
     return utc_now() + timedelta(seconds=ttl_seconds)

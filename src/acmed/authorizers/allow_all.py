@@ -1,4 +1,7 @@
-"""Authorizer that always permits requests."""
+"""Authorizer that always permits requests.
+
+This module contains implementation used by the acmed runtime and plugin surfaces.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +16,14 @@ class AllowAllAuthorizer:
     name: str
 
     def evaluate(self, request: AuthorizerInput) -> AuthorizerResult:
+        """Evaluate for AllowAllAuthorizer.
+
+        Args:
+            request: Normalized request input for authorizer/proof evaluation.
+
+        Returns:
+            Result value matching `AuthorizerResult`.
+        """
         return AuthorizerResult(
             authorizer_name=self.name,
             allowed=True,
