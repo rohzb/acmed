@@ -1,0 +1,17 @@
+.git
+.gitignore
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+
+tests/
+docs/
+local/
+
+docker/.env
+docker/data/
+docker/secrets/

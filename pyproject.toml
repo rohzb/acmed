@@ -1,0 +1,26 @@
+[project]
+name = "acmed"
+version = "0.1.1"
+description = "Policy-driven ACME broker service"
+requires-python = ">=3.11"
+license = "MIT"
+urls = { Repository = "https://github.com/rohzb/acmed", Issues = "https://github.com/rohzb/acmed/issues" }
+dependencies = [
+  "PyYAML>=6.0",
+  "cryptography>=42.0.0",
+  "dnspython>=2.6.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

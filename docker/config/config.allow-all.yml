@@ -1,0 +1,75 @@
+# Docker profile: easiest local run (allow_all)
+#
+# Use this when you want the quickest smoke test and do not need source-IP checks.
+# This profile is intentionally permissive and intended for local/lab use.
+
+server:
+  host: 0.0.0.0
+  port: 8443
+  tls_enabled: false
+  development_mode: true
+
+identity:
+  api_tokens:
+    enabled: true
+    tokens:
+      - token_id: admin
+        subject: acmed-admin
+        secret_env: ACMED_TOKEN_ADMIN
+        roles: [requester]
+  mtls:
+    enabled: false
+
+access:
+  admin_subjects: [acmed-admin]
+
+limits:
+  max_dns_names_per_order: 25
+  max_csr_bytes: 32768
+  max_request_body_bytes: 65536
+  create_order_rate_limit_per_minute: 30
+
+orders:
+  default_ttl_seconds: 3600
+  claim_ttl_seconds: 300
+  max_retries: 3
+
+acme:
+  enabled: true
+  directory_path: /acme/directory
+  require_eab: false
+  allow_wildcards: false
+  supported_challenge_types: [http-01]
+
+storage:
+  sqlite_path: /app/data/acmed.db
+  artifacts_root: /app/data/orders
+
+workers:
+  poll_interval_seconds: 2
+  max_parallel_orders: 4
+
+issuers:
+  - name: mock
+    type: mock
+
+proof_handlers:
+  - name: no-proof
+    type: none
+
+authorizers:
+  # Most permissive mode: all request sources pass authorizer stage.
+  - name: allow-all
+    type: allow_all
+
+policies:
+  - name: local-lab
+    requester_match:
+      authorizers: [allow-all]
+    allowed_domains:
+      - syntax: suffix
+        value: .lab.example.org
+    allowed_issuers: [mock]
+    proof_handler: no-proof
+    csr_mode: either
+    challenge_validation_mode: strict

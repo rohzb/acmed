@@ -1,0 +1,60 @@
+services:
+  acmed:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime-base
+    container_name: acmed
+    restart: unless-stopped
+    init: true
+    user: "${ACMED_UID:-10001}:${ACMED_GID:-10001}"
+    environment:
+      ACMED_TOKEN_ADMIN_FILE: /run/secrets/acmed_token_admin
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /var/tmp:rw,noexec,nosuid,size=64m
+    pids_limit: 256
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 4096
+    ports:
+      - "${ACMED_PUBLISH_IP:-0.0.0.0}:${ACMED_PUBLISH_PORT:-8443}:8443"
+    volumes:
+      - ./config/config.yml:/app/config/config.yml:ro
+      - acmed_data:/app/data:rw
+    secrets:
+      - source: acmed_token_admin
+        target: acmed_token_admin
+        uid: "${ACMED_UID:-10001}"
+        gid: "${ACMED_GID:-10001}"
+        mode: 0400
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8443/healthz', timeout=2).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 20s
+
+volumes:
+  acmed_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ACMED_DATA_DIR:-./data}
+
+secrets:
+  acmed_token_admin:
+    file: ${ACMED_ADMIN_TOKEN_FILE:-./secrets/acmed_token_admin}

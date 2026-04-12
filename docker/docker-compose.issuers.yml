@@ -1,0 +1,6 @@
+services:
+  acmed:
+    build:
+      target: ${ACMED_IMAGE_TARGET:-runtime-issuers}
+      args:
+        ACMESH_REF: ${ACMESH_REF:-master}

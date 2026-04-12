@@ -1,0 +1,202 @@
+# acmed full local example
+#
+# This file is intentionally verbose and heavily commented so you can see
+# what each section does. Start with the defaults, then trim what you do not need.
+#
+# Base setup notes:
+# - This example runs with TLS enabled.
+# - API token auth is enabled.
+# - ACME EAB is disabled (set require_eab=true + credentials to enable).
+# - Mock issuer is used for local testing.
+
+server:
+  # Listener address for the HTTP service.
+  # Use 127.0.0.1 for local-only testing, 0.0.0.0 for container/remote access.
+  host: 127.0.0.1
+  port: 8443
+
+  # Keep true for real deployments.
+  tls_enabled: true
+
+  # Development mode relaxes some safety rules.
+  # Keep false in production.
+  development_mode: true
+
+identity:
+  api_tokens:
+    # Token auth for admin and broker-style endpoints.
+    enabled: true
+    tokens:
+      - token_id: admin
+        # Requester/admin identity used internally after auth.
+        subject: acmed-admin
+
+        # Environment variable that stores token secret value.
+        # Required when api_tokens.enabled=true.
+        secret_env: ACMED_TOKEN_ADMIN
+
+        # Roles are currently requester-oriented in this codebase.
+        # Admin access is controlled separately via access.admin_subjects.
+        roles: [requester]
+
+  mtls:
+    # Optional in v1. Keep false for base setup.
+    enabled: false
+
+    # Not needed for base setup.
+    # Required when mtls.enabled=true.
+    # trusted_client_ca_file: /etc/acmed/client-ca.pem
+
+    # Not needed for base setup.
+    # Map verified client certificate subjects to internal subjects.
+    # subject_mappings:
+    #   - from_subject: "CN=host1.lab.example.org"
+    #     to_subject: "host1.lab.example.org"
+
+access:
+  # Subjects that are allowed to call /api/v1/admin/*
+  admin_subjects: [acmed-admin]
+
+limits:
+  # Maximum SAN entries per order request.
+  max_dns_names_per_order: 25
+
+  # Maximum decoded CSR size in bytes.
+  max_csr_bytes: 32768
+
+  # Maximum raw request body size in bytes.
+  max_request_body_bytes: 65536
+
+  # Per-requester create-order rate cap.
+  create_order_rate_limit_per_minute: 30
+
+orders:
+  # Order lifetime before automatic expiration.
+  default_ttl_seconds: 3600
+
+  # Worker claim lease duration.
+  claim_ttl_seconds: 300
+
+  # Max issuance retries before terminal failure.
+  max_retries: 3
+
+acme:
+  enabled: true
+
+  # ACME directory endpoint path.
+  directory_path: /acme/directory
+
+  # External Account Binding requirement for newAccount.
+  # Keep false for simple local setup.
+  require_eab: false
+
+  # Wildcards require dns-01 end-to-end support.
+  allow_wildcards: false
+
+  # Supported ACME challenge types in this deployment.
+  # Valid values: http-01, dns-01, tls-alpn-01
+  supported_challenge_types: [http-01]
+
+  # Not needed for base setup.
+  # Required when require_eab=true.
+  # eab_credentials:
+  #   - kid: "lab-client-1"
+  #     secret_env: ACMED_EAB_LAB_CLIENT_1
+
+storage:
+  # SQLite DB file path.
+  sqlite_path: data/acmed.db
+
+  # Root directory for per-order artifacts.
+  artifacts_root: data/orders
+
+workers:
+  # Poll interval for worker loop.
+  poll_interval_seconds: 2
+
+  # Maximum concurrent orders processed by worker.
+  max_parallel_orders: 4
+
+# Not needed for base setup.
+# Enables regex policy syntax in allowed_domains entries.
+# features:
+#   regex_policy_mode_enabled: true
+
+issuers:
+  # Mock issuer for local validation and smoke tests.
+  - name: mock
+    type: mock
+
+  # Not needed for base setup.
+  # Example acme.sh issuer profile.
+  # - name: pebble-acmesh-dns
+  #   type: acme_sh
+  #   executable: /usr/bin/acme.sh
+  #   ca_directory_url: https://pebble:14000/dir
+  #   challenge_mode: dns-01
+  #   plugin_name: dns_cf
+  #   credential_env: [CF_Token]
+
+  # Not needed for base setup.
+  # Example certbot issuer profile.
+  # - name: le-certbot-dns
+  #   type: certbot
+  #   executable: /usr/bin/certbot
+  #   ca_directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
+  #   challenge_mode: dns-01
+  #   plugin_name: dns-route53
+  #   credential_env: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]
+
+proof_handlers:
+  # No extra internal proof step.
+  - name: no-proof
+    type: none
+
+  # Not needed for base setup.
+  # Example proof handler plugin config.
+  # - name: inventory-assertion
+  #   type: inventory_assertion
+  #   inventory_source: local
+
+authorizers:
+  # Source subnet authorizer.
+  - name: subnet-lab
+    type: source_subnet
+    source_subnets: [10.20.30.0/24]
+
+  # Not needed for base setup.
+  # Permissive authorizer, useful only for local testing.
+  # - name: allow-all
+  #   type: allow_all
+
+policies:
+  - name: lab-hosts
+
+    requester_match:
+      # Must reference configured authorizer names.
+      authorizers: [subnet-lab]
+
+    # Domain authorization rules.
+    # syntax values: exact, suffix, regex (regex requires feature flag).
+    allowed_domains:
+      - syntax: exact
+        value: host1.lab.example.org
+      - syntax: suffix
+        value: .apps.lab.example.org
+
+    # Must reference configured issuer names.
+    allowed_issuers: [mock]
+
+    # Must reference configured proof handler name.
+    proof_handler: no-proof
+
+    # CSR mode options:
+    # - either
+    # - client_provided
+    # - service_generated
+    csr_mode: either
+
+    # Challenge validation mode options:
+    # - strict
+    # - trusted_bypass (development_mode must be true)
+    challenge_validation_mode: strict
