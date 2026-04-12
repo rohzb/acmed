@@ -293,7 +293,7 @@ def _respond_json(
     include_body: bool = True,
 ):
     """Return JSON WSGI response body and headers."""
-    payload = json.dumps(body).encode("utf-8") if include_body else b""
+    payload = json.dumps(body, separators=(",", ":")).encode("utf-8") if include_body else b""
     header_list = list(headers.items()) + [("Content-Length", str(len(payload)))]
     start_response(f"{status} {_reason_phrase(status)}", header_list)
     return [payload]

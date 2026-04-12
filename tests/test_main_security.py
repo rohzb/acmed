@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from acmed.errors import AcmeProblemError
-from acmed.main import _base_url, _read_body, build_wsgi_app
+from acmed.main import _base_url, _read_body, _respond_json, build_wsgi_app
 
 
 def _make_cfg(*, external_base_url=None, trust_forwarded_headers=False, trusted_proxy_cidrs=None):
@@ -105,3 +105,24 @@ def test_wsgi_acme_unhandled_error_is_sanitized():
     assert status_holder[0].startswith("500")
     assert parsed["type"] == "urn:ietf:params:acme:error:serverInternal"
     assert "boom" not in parsed["detail"]
+
+
+def test_respond_json_uses_compact_encoding_for_client_compatibility():
+    status_holder = []
+    headers_holder = []
+
+    def start_response(status, headers):
+        status_holder.append(status)
+        headers_holder.extend(headers)
+
+    body = b"".join(
+        _respond_json(
+            start_response,
+            200,
+            {"status": "valid", "certificate": "http://example/cert"},
+            {"Content-Type": "application/json"},
+        )
+    )
+    rendered = body.decode("utf-8")
+    assert '"status":"valid"' in rendered
+    assert '"certificate":"http://example/cert"' in rendered

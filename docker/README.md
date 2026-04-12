@@ -100,6 +100,72 @@ cp docker/config/config.issuers.example.yml docker/config/config.yml
 This setup uses `development_mode: true` and `tls_enabled: false`, so it is for local testing only.
 The default issuer is `mock`, and runtime state is stored in `docker/data`.
 
+## Pebble Chain Smoke Tests
+
+For deterministic local ACME integration checks, this repository includes a dedicated
+test stack:
+
+- `pebble`: ACME test CA
+- `acmed`: runtime image with issuer tooling available
+- `chain-tests`: client runner with `certbot` and `acme.sh`
+
+The chain runner performs:
+
+- `certbot -> acmed` issuance
+- `acme.sh -> acmed` issuance
+- admin-order verification from `acmed`
+- `certbot -> pebble` issuance
+- `acme.sh -> pebble` issuance
+
+Run from repository root:
+
+```bash
+./docker/scripts/test-pebble-chain.sh
+```
+
+Debug-friendly modes:
+
+```bash
+# keep containers running after failure for manual inspection
+CHAIN_KEEP_STACK=1 ./docker/scripts/test-pebble-chain.sh
+
+# enable shell trace logs in the chain runner
+CHAIN_DEBUG=1 ./docker/scripts/test-pebble-chain.sh
+
+# combine both for deep troubleshooting
+CHAIN_DEBUG=1 CHAIN_KEEP_STACK=1 ./docker/scripts/test-pebble-chain.sh
+```
+
+The chain runner now emits a structured summary at the end of every run:
+
+- overall status (`PASS`/`FAIL`)
+- exit code
+- per-step pass/fail results with durations
+- failed step and rc (on failure)
+- key artifact presence checks
+
+By default the summary is written inside the test container to:
+
+- `/tmp/chain-summary.txt`
+- `/tmp/chain-summary.json`
+
+and is also printed by the host wrapper from compose logs after each run.
+
+Compose file and config used by this flow:
+
+- `docker/docker-compose.pebble-test.yml`
+- `docker/config/config.pebble-chain-test.yml`
+
+Notes:
+
+- this test profile is intentionally development-only (`trusted_bypass`, non-TLS `acmed`)
+- `pebble` runs with `PEBBLE_VA_ALWAYS_VALID=1` for deterministic challenge behavior
+- the `acmed` side of this stack uses the `mock` issuer profile to keep the broker path stable for smoke testing
+- on failure the host wrapper prints compose status and recent logs automatically
+- the client runner also emits a local debug bundle (endpoint probes, certbot log tails, acme.sh file listing, admin-order snapshot)
+- extra checks include certificate parsing/SAN validation, Pebble management cert checks, and shared `acmed` artifact volume validation
+- additional negative checks verify invalid admin tokens are rejected, out-of-policy domains are denied, and malformed ACME requests return ACME problem responses
+
 ## Container Hardening Defaults
 
 The compose service applies baseline hardening for local development:

@@ -42,6 +42,9 @@ class SubprocessIssuerMixin:
         """
 
         env = {"PATH": os.environ.get("PATH", "")}
+        home = os.environ.get("HOME")
+        if home is not None:
+            env["HOME"] = home
         for name in profile.credential_env or []:
             value = os.environ.get(name)
             if value is None:

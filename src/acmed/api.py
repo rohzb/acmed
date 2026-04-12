@@ -61,4 +61,4 @@ class ApiService:
         Returns:
             Result value matching `bytes`.
         """
-        return json.dumps(body, sort_keys=True).encode("utf-8")
+        return json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")

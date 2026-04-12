@@ -1,0 +1,51 @@
+services:
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:latest
+    restart: unless-stopped
+    environment:
+      PEBBLE_VA_NOSLEEP: "1"
+      PEBBLE_WFE_NONCEREJECT: "0"
+      PEBBLE_VA_ALWAYS_VALID: "1"
+    expose:
+      - "14000"
+      - "15000"
+
+  acmed:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime-issuers
+    restart: unless-stopped
+    init: true
+    environment:
+      ACMED_TOKEN_ADMIN: test-admin-token
+    volumes:
+      - ./config/config.pebble-chain-test.yml:/app/config/config.yml:ro
+      - acmed_chain_data:/app/data:rw
+    depends_on:
+      - pebble
+
+  chain-tests:
+    build:
+      context: ..
+      dockerfile: docker/tests/client.Dockerfile
+    environment:
+      ACMED_DIRECTORY_URL: http://acmed:8443/acme/directory
+      ACMED_ADMIN_API_URL: http://acmed:8443/api/v1/admin/orders
+      ACMED_ADMIN_TOKEN: test-admin-token
+      PEBBLE_DIRECTORY_URL: https://pebble:14000/dir
+      PEBBLE_MANAGEMENT_URL: https://pebble:15000
+      CHAIN_DEBUG: "${CHAIN_DEBUG:-0}"
+      CHAIN_SUMMARY_FILE: /tmp/chain-summary.txt
+      CHAIN_SUMMARY_JSON: /tmp/chain-summary.json
+    volumes:
+      - ./tests:/opt/chain-tests:ro
+      - acmed_chain_data:/acmed-data:ro
+    depends_on:
+      - acmed
+      - pebble
+    entrypoint: ["/opt/chain-tests/chain-runner.sh"]
+
+volumes:
+  acmed_chain_data:
+    driver: local
