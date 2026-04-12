@@ -132,6 +132,10 @@ CHAIN_KEEP_STACK=1 ./docker/scripts/test-pebble-chain.sh
 # enable shell trace logs in the chain runner
 CHAIN_DEBUG=1 ./docker/scripts/test-pebble-chain.sh
 
+# run Pebble-side clients in strict TLS mode (no insecure client flags);
+# chain runner builds a CA bundle from Pebble root/intermediate/WFE chain
+CHAIN_STRICT_TLS=1 ./docker/scripts/test-pebble-chain.sh
+
 # combine both for deep troubleshooting
 CHAIN_DEBUG=1 CHAIN_KEEP_STACK=1 ./docker/scripts/test-pebble-chain.sh
 ```
@@ -150,6 +154,22 @@ By default the summary is written inside the test container to:
 - `/tmp/chain-summary.json`
 
 and is also printed by the host wrapper from compose logs after each run.
+
+Reproducibility defaults and overrides:
+
+- Pebble image defaults to `ghcr.io/letsencrypt/pebble:latest` in `docker-compose.pebble-test.yml`.
+- `acme.sh` defaults to `v3.0.5` in Docker build args.
+- override Pebble image (including digest-pinned form) with `PEBBLE_IMAGE`, for example:
+
+  ```bash
+  PEBBLE_IMAGE='ghcr.io/letsencrypt/pebble@sha256:<digest>' ./docker/scripts/test-pebble-chain.sh
+  ```
+
+- override acme.sh reference with `ACMESH_REF` when needed:
+
+  ```bash
+  ACMESH_REF='v3.0.5' ./docker/scripts/test-pebble-chain.sh
+  ```
 
 Compose file and config used by this flow:
 

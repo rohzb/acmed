@@ -14,9 +14,11 @@ set -eu
 ACMED_DIRECTORY_URL="${ACMED_DIRECTORY_URL:-http://acmed:8443/acme/directory}"
 ACMED_ADMIN_API_URL="${ACMED_ADMIN_API_URL:-http://acmed:8443/api/v1/admin/orders}"
 ACMED_ADMIN_TOKEN="${ACMED_ADMIN_TOKEN:-test-admin-token}"
+ACMED_BASE_URL="${ACMED_BASE_URL:-${ACMED_DIRECTORY_URL%/acme/directory}}"
 PEBBLE_DIRECTORY_URL="${PEBBLE_DIRECTORY_URL:-https://pebble:14000/dir}"
 PEBBLE_MANAGEMENT_URL="${PEBBLE_MANAGEMENT_URL:-https://pebble:15000}"
 CHAIN_DEBUG="${CHAIN_DEBUG:-0}"
+CHAIN_STRICT_TLS="${CHAIN_STRICT_TLS:-0}"
 CHAIN_SUMMARY_FILE="${CHAIN_SUMMARY_FILE:-/tmp/chain-summary.txt}"
 CHAIN_SUMMARY_JSON="${CHAIN_SUMMARY_JSON:-/tmp/chain-summary.json}"
 CHAIN_STEP_RESULTS_FILE="${CHAIN_STEP_RESULTS_FILE:-/tmp/chain-step-results.tsv}"
@@ -33,9 +35,13 @@ PASSED_STEPS=0
 : > "$CHAIN_STEP_RESULTS_FILE"
 
 CERTBOT_ACMED_FULLCHAIN="/tmp/certbot-acmed/config/live/host1.lab.example.org/fullchain.pem"
-ACMESH_ACMED_FULLCHAIN="/tmp/acmesh-acmed/certs/host2.lab.example.org_ecc/fullchain.cer"
+ACMESH_ACMED_FULLCHAIN="/tmp/acmesh-acmed/certs/host2.lab.example.org/fullchain.cer"
 CERTBOT_PEBBLE_FULLCHAIN="/tmp/certbot-pebble/config/live/pebble-certbot.lab.example.org/fullchain.pem"
-ACMESH_PEBBLE_FULLCHAIN="/tmp/acmesh-pebble/certs/pebble-acmesh.lab.example.org_ecc/fullchain.cer"
+ACMESH_PEBBLE_FULLCHAIN="/tmp/acmesh-pebble/certs/pebble-acmesh.lab.example.org/fullchain.cer"
+PEBBLE_ROOT_CERT="/tmp/pebble-root.pem"
+PEBBLE_INTERMEDIATE_CERT="/tmp/pebble-intermediate.pem"
+PEBBLE_WFE_CHAIN="/tmp/pebble-wfe-chain.pem"
+PEBBLE_CA_BUNDLE="/tmp/pebble-ca-bundle.pem"
 
 write_step_result() {
   status="$1"
@@ -163,15 +169,15 @@ dump_debug_bundle() {
   echo "[debug] collecting local debug bundle" >&2
 
   echo "[debug] acmed directory response:" >&2
-  curl -fsS "$ACMED_DIRECTORY_URL" 2>&1 || true
+  curl -fsS "$ACMED_DIRECTORY_URL" >&2 || true
   echo >&2
 
   echo "[debug] pebble directory response:" >&2
-  curl -fsS -k "$PEBBLE_DIRECTORY_URL" 2>&1 || true
+  curl -fsS -k "$PEBBLE_DIRECTORY_URL" >&2 || true
   echo >&2
 
   echo "[debug] pebble management roots/0 response header:" >&2
-  curl -fsS -k -I "${PEBBLE_MANAGEMENT_URL}/roots/0" 2>&1 || true
+  curl -fsS -k -I "${PEBBLE_MANAGEMENT_URL}/roots/0" >&2 || true
   echo >&2
 
   if [ -f /tmp/certbot-acmed/logs/letsencrypt.log ]; then
@@ -198,7 +204,7 @@ dump_debug_bundle() {
   fi
 
   echo "[debug] acmed admin orders snapshot:" >&2
-  curl -fsS -H "Authorization: Bearer ${ACMED_ADMIN_TOKEN}" "${ACMED_ADMIN_API_URL}?limit=50" 2>&1 || true
+  curl -fsS -H "Authorization: Bearer ${ACMED_ADMIN_TOKEN}" "${ACMED_ADMIN_API_URL}?limit=50" >&2 || true
   echo >&2
 }
 
@@ -244,6 +250,54 @@ wait_for_services() {
   wait_for_url "$ACMED_DIRECTORY_URL" false "acmed directory" 180
   wait_for_url "$PEBBLE_DIRECTORY_URL" true "pebble directory" 180
   wait_for_url "$PEBBLE_MANAGEMENT_URL/roots/0" true "pebble management root endpoint" 180
+}
+
+resolve_acmesh_fullchain() {
+  cert_home="$1"
+  domain="$2"
+  candidate_plain="${cert_home}/${domain}/fullchain.cer"
+  candidate_ecc="${cert_home}/${domain}_ecc/fullchain.cer"
+  if [ -f "$candidate_plain" ]; then
+    printf '%s\n' "$candidate_plain"
+    return 0
+  fi
+  if [ -f "$candidate_ecc" ]; then
+    printf '%s\n' "$candidate_ecc"
+    return 0
+  fi
+  return 1
+}
+
+prepare_tls_trust() {
+  curl -fsS -k "${PEBBLE_MANAGEMENT_URL}/roots/0" -o "${PEBBLE_ROOT_CERT}"
+  curl -fsS -k "${PEBBLE_MANAGEMENT_URL}/intermediates/0" -o "${PEBBLE_INTERMEDIATE_CERT}"
+  openssl x509 -in "${PEBBLE_ROOT_CERT}" -noout >/dev/null
+  openssl x509 -in "${PEBBLE_INTERMEDIATE_CERT}" -noout >/dev/null
+  # Capture the certificate chain presented by Pebble WFE endpoint.
+  # Some client stacks require intermediates that are not obvious from management roots alone.
+  openssl s_client -showcerts -connect pebble:14000 -servername pebble </dev/null 2>/dev/null \
+    | awk '/-----BEGIN CERTIFICATE-----/{in_cert=1} in_cert{print} /-----END CERTIFICATE-----/{in_cert=0; print ""}' \
+    > "${PEBBLE_WFE_CHAIN}" || true
+
+  cat "${PEBBLE_ROOT_CERT}" "${PEBBLE_INTERMEDIATE_CERT}" > "${PEBBLE_CA_BUNDLE}"
+  if [ -s "${PEBBLE_WFE_CHAIN}" ]; then
+    cat "${PEBBLE_WFE_CHAIN}" >> "${PEBBLE_CA_BUNDLE}"
+  fi
+
+  # Install Pebble trust anchors into system CA store so tools that rely on
+  # OpenSSL defaults (instead of REQUESTS_CA_BUNDLE) can validate correctly.
+  cp "${PEBBLE_ROOT_CERT}" /usr/local/share/ca-certificates/pebble-root.crt
+  cp "${PEBBLE_INTERMEDIATE_CERT}" /usr/local/share/ca-certificates/pebble-intermediate.crt
+  if command -v update-ca-certificates >/dev/null 2>&1; then
+    update-ca-certificates >/dev/null 2>&1 || true
+  fi
+
+  export REQUESTS_CA_BUNDLE="${PEBBLE_CA_BUNDLE}"
+  export SSL_CERT_FILE="${PEBBLE_CA_BUNDLE}"
+  export CURL_CA_BUNDLE="${PEBBLE_CA_BUNDLE}"
+  # Strict-mode preflight: fail early if directory still cannot be verified.
+  curl -fsS "${PEBBLE_DIRECTORY_URL}" >/dev/null
+  echo "[check] strict TLS trust enabled using ${PEBBLE_CA_BUNDLE} (root+intermediate+wfe-chain+system-ca)"
 }
 
 verify_pem_cert() {
@@ -315,6 +369,12 @@ run_acmesh_against_acmed() {
     --httpport 5002 \
     -d host2.lab.example.org
 
+  resolved_fullchain="$(resolve_acmesh_fullchain "$acme_certs" "host2.lab.example.org" || true)"
+  if [ -z "$resolved_fullchain" ]; then
+    echo "[error] could not locate acme.sh fullchain for host2.lab.example.org under ${acme_certs}" >&2
+    return 1
+  fi
+  ACMESH_ACMED_FULLCHAIN="$resolved_fullchain"
   test -f "$ACMESH_ACMED_FULLCHAIN" || return 1
 }
 
@@ -361,7 +421,7 @@ verify_acmed_artifact_contents() {
 import json
 from pathlib import Path
 import subprocess
-import sys
+from hashlib import sha256
 
 orders = json.loads(Path("/tmp/acmed-orders.json").read_text(encoding="utf-8")).get("orders", [])
 targets = {
@@ -393,16 +453,11 @@ for domain, order_id in targets.items():
     if fullchain_blocks < 2:
         raise SystemExit(f"fullchain for {domain} has fewer than 2 certificate blocks")
 
-    cert_pub = subprocess.check_output(
-        "openssl x509 -in '{}' -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256".format(cert),
-        shell=True,
-        text=True,
-    ).strip()
-    key_pub = subprocess.check_output(
-        "openssl pkey -in '{}' -pubout -outform der | openssl dgst -sha256".format(key),
-        shell=True,
-        text=True,
-    ).strip()
+    cert_pub_pem = subprocess.check_output(["openssl", "x509", "-in", str(cert), "-pubkey", "-noout"])
+    cert_pub_der = subprocess.check_output(["openssl", "pkey", "-pubin", "-outform", "der"], input=cert_pub_pem)
+    key_pub_der = subprocess.check_output(["openssl", "pkey", "-in", str(key), "-pubout", "-outform", "der"])
+    cert_pub = sha256(cert_pub_der).hexdigest()
+    key_pub = sha256(key_pub_der).hexdigest()
     if cert_pub != key_pub:
         raise SystemExit(f"public key mismatch between certificate and private key for {domain}")
 
@@ -455,12 +510,14 @@ verify_policy_denies_nonmatching_domain() {
     cat /tmp/certbot-denied.out >&2 || true
     return 1
   fi
-  if ! grep -Ei "unauthorized|denied|policy|rejected|access denied" /tmp/certbot-denied.out >/dev/null; then
-    echo "[error] denied-domain run failed but output did not include clear denial markers" >&2
+  if ! grep -E "urn:ietf:params:acme:error:unauthorized|403[[:space:]]|HTTP 403" /tmp/certbot-denied.out >/dev/null \
+    && ! grep -E "urn:ietf:params:acme:error:unauthorized|403[[:space:]]|HTTP 403" "$cert_root/logs/letsencrypt.log" >/dev/null; then
+    echo "[error] denied-domain run failed but ACME unauthorized semantics were not observed" >&2
     cat /tmp/certbot-denied.out >&2 || true
+    tail -n 120 "$cert_root/logs/letsencrypt.log" >&2 || true
     return 1
   fi
-  echo "[check] policy denies non-matching domain requests as expected"
+  echo "[check] policy denies non-matching domain requests with ACME unauthorized semantics"
 }
 
 verify_malformed_acme_request_rejected() {
@@ -468,7 +525,7 @@ verify_malformed_acme_request_rejected() {
     -H 'Content-Type: application/jose+json' \
     -X POST \
     --data '{}' \
-    http://acmed:8443/acme/new-account || true)"
+    "${ACMED_BASE_URL}/acme/new-account" || true)"
   if [ "$code" != "400" ]; then
     echo "[error] expected malformed ACME request to return 400, got ${code}" >&2
     cat /tmp/acme-malformed.json >&2 || true
@@ -509,18 +566,32 @@ run_certbot_against_pebble() {
   cert_root="/tmp/certbot-pebble"
   mkdir -p "$cert_root/config" "$cert_root/work" "$cert_root/logs"
 
-  timeout 300 certbot certonly \
-    --standalone \
-    --preferred-challenges http \
-    --http-01-port 5002 \
-    --server "$PEBBLE_DIRECTORY_URL" \
-    --no-verify-ssl \
-    --agree-tos \
-    --register-unsafely-without-email \
-    --config-dir "$cert_root/config" \
-    --work-dir "$cert_root/work" \
-    --logs-dir "$cert_root/logs" \
-    -d pebble-certbot.lab.example.org
+  if [ "$CHAIN_STRICT_TLS" = "1" ]; then
+    timeout 300 certbot certonly \
+      --standalone \
+      --preferred-challenges http \
+      --http-01-port 5002 \
+      --server "$PEBBLE_DIRECTORY_URL" \
+      --agree-tos \
+      --register-unsafely-without-email \
+      --config-dir "$cert_root/config" \
+      --work-dir "$cert_root/work" \
+      --logs-dir "$cert_root/logs" \
+      -d pebble-certbot.lab.example.org
+  else
+    timeout 300 certbot certonly \
+      --standalone \
+      --preferred-challenges http \
+      --http-01-port 5002 \
+      --server "$PEBBLE_DIRECTORY_URL" \
+      --no-verify-ssl \
+      --agree-tos \
+      --register-unsafely-without-email \
+      --config-dir "$cert_root/config" \
+      --work-dir "$cert_root/work" \
+      --logs-dir "$cert_root/logs" \
+      -d pebble-certbot.lab.example.org
+  fi
 
   test -f "$CERTBOT_PEBBLE_FULLCHAIN" || return 1
 }
@@ -531,31 +602,60 @@ run_acmesh_against_pebble() {
   acme_certs="/tmp/acmesh-pebble/certs"
   mkdir -p "$acme_home" "$acme_config" "$acme_certs"
 
-  timeout 180 /usr/local/bin/acme.sh \
-    --home "$acme_home" \
-    --config-home "$acme_config" \
-    --cert-home "$acme_certs" \
-    --server "$PEBBLE_DIRECTORY_URL" \
-    --insecure \
-    --register-account \
-    -m pebble-chain@example.invalid || true
+  if [ "$CHAIN_STRICT_TLS" = "1" ]; then
+    timeout 180 /usr/local/bin/acme.sh \
+      --home "$acme_home" \
+      --config-home "$acme_config" \
+      --cert-home "$acme_certs" \
+      --server "$PEBBLE_DIRECTORY_URL" \
+      --register-account \
+      -m pebble-chain@example.invalid || true
 
-  timeout 300 /usr/local/bin/acme.sh \
-    --home "$acme_home" \
-    --config-home "$acme_config" \
-    --cert-home "$acme_certs" \
-    --server "$PEBBLE_DIRECTORY_URL" \
-    --insecure \
-    --issue \
-    --standalone \
-    --httpport 5002 \
-    -d pebble-acmesh.lab.example.org
+    timeout 300 /usr/local/bin/acme.sh \
+      --home "$acme_home" \
+      --config-home "$acme_config" \
+      --cert-home "$acme_certs" \
+      --server "$PEBBLE_DIRECTORY_URL" \
+      --issue \
+      --standalone \
+      --httpport 5002 \
+      -d pebble-acmesh.lab.example.org
+  else
+    timeout 180 /usr/local/bin/acme.sh \
+      --home "$acme_home" \
+      --config-home "$acme_config" \
+      --cert-home "$acme_certs" \
+      --server "$PEBBLE_DIRECTORY_URL" \
+      --insecure \
+      --register-account \
+      -m pebble-chain@example.invalid || true
 
+    timeout 300 /usr/local/bin/acme.sh \
+      --home "$acme_home" \
+      --config-home "$acme_config" \
+      --cert-home "$acme_certs" \
+      --server "$PEBBLE_DIRECTORY_URL" \
+      --insecure \
+      --issue \
+      --standalone \
+      --httpport 5002 \
+      -d pebble-acmesh.lab.example.org
+  fi
+
+  resolved_fullchain="$(resolve_acmesh_fullchain "$acme_certs" "pebble-acmesh.lab.example.org" || true)"
+  if [ -z "$resolved_fullchain" ]; then
+    echo "[error] could not locate acme.sh fullchain for pebble-acmesh.lab.example.org under ${acme_certs}" >&2
+    return 1
+  fi
+  ACMESH_PEBBLE_FULLCHAIN="$resolved_fullchain"
   test -f "$ACMESH_PEBBLE_FULLCHAIN" || return 1
 }
 
 echo "[info] waiting for acmed and pebble endpoints"
 run_step "wait for services" wait_for_services || exit $?
+if [ "$CHAIN_STRICT_TLS" = "1" ]; then
+  run_step "prepare strict TLS trust bundle" prepare_tls_trust || exit $?
+fi
 
 run_step "certbot -> acmed issuance" run_certbot_against_acmed || exit $?
 run_step "verify certbot -> acmed certificate" verify_pem_cert "$CERTBOT_ACMED_FULLCHAIN" "host1.lab.example.org" "certbot->acmed" || exit $?

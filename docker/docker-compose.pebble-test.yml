@@ -1,6 +1,6 @@
 services:
   pebble:
-    image: ghcr.io/letsencrypt/pebble:latest
+    image: ${PEBBLE_IMAGE:-ghcr.io/letsencrypt/pebble:latest}
     restart: unless-stopped
     environment:
       PEBBLE_VA_NOSLEEP: "1"
@@ -36,6 +36,7 @@ services:
       PEBBLE_DIRECTORY_URL: https://pebble:14000/dir
       PEBBLE_MANAGEMENT_URL: https://pebble:15000
       CHAIN_DEBUG: "${CHAIN_DEBUG:-0}"
+      CHAIN_STRICT_TLS: "${CHAIN_STRICT_TLS:-0}"
       CHAIN_SUMMARY_FILE: /tmp/chain-summary.txt
       CHAIN_SUMMARY_JSON: /tmp/chain-summary.json
     volumes:

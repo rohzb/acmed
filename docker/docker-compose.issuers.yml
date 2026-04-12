@@ -3,4 +3,4 @@ services:
     build:
       target: ${ACMED_IMAGE_TARGET:-runtime-issuers}
       args:
-        ACMESH_REF: ${ACMESH_REF:-master}
+        ACMESH_REF: ${ACMESH_REF:-v3.0.5}

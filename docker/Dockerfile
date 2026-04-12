@@ -35,7 +35,7 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates curl openssl socat \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ACMESH_REF=master
+ARG ACMESH_REF=v3.0.5
 RUN curl --fail --show-error --silent --location \
     "https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACMESH_REF}/acme.sh" \
     --output /usr/local/bin/acme.sh \
@@ -61,7 +61,7 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates certbot curl openssl socat \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ACMESH_REF=master
+ARG ACMESH_REF=v3.0.5
 RUN curl --fail --show-error --silent --location \
     "https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACMESH_REF}/acme.sh" \
     --output /usr/local/bin/acme.sh \
