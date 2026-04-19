@@ -80,7 +80,7 @@ python -m acmed.main <config.yml>
 
 CI workflows:
 
-- `ci`: Python test matrix (`3.11`, `3.12`) plus package build validation.
+- `ci`: Python test matrix (`3.11` through `3.14`) plus package build validation.
 - `docker-ci`: Docker image build and runtime smoke test (`/healthz`).
 - `security-checks`: Trivy (vuln/misconfig) + Gitleaks + TruffleHog security checks.
 
