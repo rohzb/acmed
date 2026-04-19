@@ -3,6 +3,11 @@
 > ⚠️ **Early-stage project**
 > Expect rough edges, changing interfaces, and incomplete pieces.
 
+[![Python Tests](https://github.com/rohzb/acmed/actions/workflows/ci.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/ci.yml)
+[![Docker Build Smoke Test](https://github.com/rohzb/acmed/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/docker-ci.yml)
+[![Secret Leak Scan](https://github.com/rohzb/acmed/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/secret-scan.yml)
+[![Release Pipeline](https://github.com/rohzb/acmed/actions/workflows/release.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/release.yml)
+
 `acmed` (ACME Daemon) is an ACME-first broker service for internal infrastructure.
 
 I built it because ACME automation gets awkward fast in segmented networks. HTTP challenges are often not reachable, DNS challenges can require broader permissions than you want to hand out, and many appliances support only part of the ecosystem. The result is usually a pile of one-off scripts and host-specific workarounds.
@@ -72,6 +77,12 @@ pytest
 ```bash
 python -m acmed.main <config.yml>
 ```
+
+CI workflows:
+
+- `ci`: Python test matrix (`3.11`, `3.12`) plus package build validation.
+- `docker-ci`: Docker image build and runtime smoke test (`/healthz`).
+- `secret-scan`: Gitleaks + TruffleHog checks for leaked credentials.
 
 Docs are under `docs/` (start with `docs/README.md`).
 Versioning and release policy is defined in `docs/reference/versioning.md`.

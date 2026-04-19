@@ -1,0 +1,63 @@
+name: docker-ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare smoke-test config
+        run: |
+          set -euo pipefail
+          cp config.example.yml "${RUNNER_TEMP}/config.yml"
+          sed -i 's/host: 127.0.0.1/host: 0.0.0.0/' "${RUNNER_TEMP}/config.yml"
+
+      - name: Build runtime image
+        run: |
+          set -euo pipefail
+          docker build \
+            --file docker/Dockerfile \
+            --target runtime-base \
+            --tag acmed-ci:${{ github.sha }} \
+            .
+
+      - name: Start container
+        run: |
+          set -euo pipefail
+          docker run -d \
+            --name acmed-ci \
+            -p 8443:8443 \
+            -e ACMED_TOKEN_ADMIN=ci-admin-token \
+            -v "${RUNNER_TEMP}/config.yml:/app/config/config.yml:ro" \
+            acmed-ci:${{ github.sha }}
+
+      - name: Smoke test health endpoint
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8443/healthz" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check failed after waiting for startup." >&2
+          docker logs acmed-ci >&2 || true
+          exit 1
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs acmed-ci || true
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm -f acmed-ci || true
