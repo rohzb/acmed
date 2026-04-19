@@ -82,7 +82,7 @@ CI workflows:
 
 - `ci`: Python test matrix (`3.11`, `3.12`) plus package build validation.
 - `docker-ci`: Docker image build and runtime smoke test (`/healthz`).
-- `secret-scan`: Gitleaks + TruffleHog checks for leaked credentials.
+- `secret-scan`: Trivy (vuln/misconfig) + Gitleaks + TruffleHog security checks.
 
 Docs are under `docs/` (start with `docs/README.md`).
 Versioning and release policy is defined in `docs/reference/versioning.md`.
