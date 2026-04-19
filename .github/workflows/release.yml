@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
 
-          if ! rg -q "^## \\[${VERSION}\\] " CHANGELOG.md; then
+          if ! grep -qE "^## \\[${VERSION}\\] " CHANGELOG.md; then
             echo "CHANGELOG.md is missing a section for [${VERSION}]." >&2
             exit 1
           fi
