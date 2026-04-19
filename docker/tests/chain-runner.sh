@@ -284,12 +284,16 @@ prepare_tls_trust() {
     cat "${PEBBLE_WFE_CHAIN}" >> "${PEBBLE_CA_BUNDLE}"
   fi
 
-  # Install Pebble trust anchors into system CA store so tools that rely on
-  # OpenSSL defaults (instead of REQUESTS_CA_BUNDLE) can validate correctly.
-  cp "${PEBBLE_ROOT_CERT}" /usr/local/share/ca-certificates/pebble-root.crt
-  cp "${PEBBLE_INTERMEDIATE_CERT}" /usr/local/share/ca-certificates/pebble-intermediate.crt
-  if command -v update-ca-certificates >/dev/null 2>&1; then
-    update-ca-certificates >/dev/null 2>&1 || true
+  # Install Pebble trust anchors into system CA store when writable.
+  # Non-root test containers continue with env-based CA bundle only.
+  if [ -w /usr/local/share/ca-certificates ]; then
+    cp "${PEBBLE_ROOT_CERT}" /usr/local/share/ca-certificates/pebble-root.crt
+    cp "${PEBBLE_INTERMEDIATE_CERT}" /usr/local/share/ca-certificates/pebble-intermediate.crt
+    if command -v update-ca-certificates >/dev/null 2>&1; then
+      update-ca-certificates >/dev/null 2>&1 || true
+    fi
+  else
+    echo "[warn] system CA store not writable; using env-based trust bundle only"
   fi
 
   export REQUESTS_CA_BUNDLE="${PEBBLE_CA_BUNDLE}"
