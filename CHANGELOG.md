@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.1.7] - 2026-04-19
+
+### Added
+- Added dedicated CI workflows for Python test matrix validation and Docker
+  build smoke testing.
+- Added Trivy-based repository security scanning to the security checks
+  workflow.
+- Added release gating that verifies security checks succeeded on the tagged
+  commit before publishing release artifacts.
+
+### Changed
+- Standardized workflow naming and badge labels for clearer human-readable CI
+  status (`Python Tests`, `Docker Build Smoke Test`, `Security Checks`,
+  `Release Pipeline`).
+- Expanded CI Python compatibility checks to run across versions 3.11 through
+  3.14.
+- Hardened `docker/tests/client.Dockerfile` and test runtime behavior to run as
+  a non-root user.
+- Updated chain test trust bootstrap to support non-root execution while
+  preserving TLS trust validation.
+
 ## [0.1.6] - 2026-04-19
 
 ### Added
