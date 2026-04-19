@@ -78,4 +78,28 @@ Versioning and release policy is defined in `docs/reference/versioning.md`.
 Human-facing docs are separate from machine-oriented contracts in `docs/models/`.
 Project is MIT licensed (`LICENSE`).
 
+## Releases
+
+Release automation is wired through GitHub Actions on tag push.
+
+Trigger it with an annotated SemVer tag that matches `pyproject.toml`:
+
+```bash
+git tag -a v0.1.5 -m "acmed v0.1.5"
+git push origin v0.1.5
+```
+
+On each `vX.Y.Z` tag push, CI will:
+
+- validate tag format and ensure it matches `project.version`
+- verify `CHANGELOG.md` contains that version
+- run tests
+- build Python artifacts (`sdist` and `wheel`)
+- build and push Docker image tags to GHCR:
+  - `X.Y.Z`
+  - `X.Y`
+  - `X`
+  - `latest`
+- create a GitHub Release with generated notes and attached build artifacts
+
 Feedback and PRs are welcome.

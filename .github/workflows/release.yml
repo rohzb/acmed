@@ -1,0 +1,116 @@
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/acmed
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate release tag and project version
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must match vX.Y.Z, got: ${TAG}" >&2
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          PROJECT_VERSION="$(python - <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+          print(data["project"]["version"])
+          PY
+          )"
+
+          if [[ "${PROJECT_VERSION}" != "${VERSION}" ]]; then
+            echo "Tag version (${VERSION}) does not match pyproject.toml (${PROJECT_VERSION})." >&2
+            exit 1
+          fi
+
+          if ! rg -q "^## \\[${VERSION}\\] " CHANGELOG.md; then
+            echo "CHANGELOG.md is missing a section for [${VERSION}]." >&2
+            exit 1
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${VERSION}"
+          {
+            echo "VERSION=${VERSION}"
+            echo "TAG=${TAG}"
+            echo "MAJOR=${MAJOR}"
+            echo "MINOR=${MINOR}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Install build and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . build pytest
+
+      - name: Run tests
+        run: pytest
+
+      - name: Build Python package artifacts
+        run: python -m build
+
+      - name: Generate artifact checksums
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum * > SHA256SUMS)
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: acmed-${{ env.VERSION }}-dist
+          path: dist/*
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push Docker images
+        run: |
+          set -euo pipefail
+          docker build \
+            --file docker/Dockerfile \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --tag "${IMAGE_NAME}:${VERSION}" \
+            --tag "${IMAGE_NAME}:${MAJOR}.${MINOR}" \
+            --tag "${IMAGE_NAME}:${MAJOR}" \
+            --tag "${IMAGE_NAME}:latest" \
+            .
+
+          docker push "${IMAGE_NAME}:${VERSION}"
+          docker push "${IMAGE_NAME}:${MAJOR}.${MINOR}"
+          docker push "${IMAGE_NAME}:${MAJOR}"
+          docker push "${IMAGE_NAME}:latest"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${TAG}" \
+            dist/* \
+            --title "acmed ${TAG}" \
+            --verify-tag \
+            --generate-notes
