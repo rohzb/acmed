@@ -5,7 +5,7 @@
 
 [![Python Tests](https://github.com/rohzb/acmed/actions/workflows/ci.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/ci.yml)
 [![Docker Build Smoke Test](https://github.com/rohzb/acmed/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/docker-ci.yml)
-[![Secret Leak Scan](https://github.com/rohzb/acmed/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/secret-scan.yml)
+[![Security Checks](https://github.com/rohzb/acmed/actions/workflows/security-checks.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/security-checks.yml)
 [![Release Pipeline](https://github.com/rohzb/acmed/actions/workflows/release.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/release.yml)
 
 `acmed` (ACME Daemon) is an ACME-first broker service for internal infrastructure.
@@ -82,7 +82,7 @@ CI workflows:
 
 - `ci`: Python test matrix (`3.11`, `3.12`) plus package build validation.
 - `docker-ci`: Docker image build and runtime smoke test (`/healthz`).
-- `secret-scan`: Trivy (vuln/misconfig) + Gitleaks + TruffleHog security checks.
+- `security-checks`: Trivy (vuln/misconfig) + Gitleaks + TruffleHog security checks.
 
 Docs are under `docs/` (start with `docs/README.md`).
 Versioning and release policy is defined in `docs/reference/versioning.md`.

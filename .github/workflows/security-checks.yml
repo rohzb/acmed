@@ -1,4 +1,4 @@
-name: Secret Leak Scan
+name: Security Checks
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   secret_scan:
-    name: secret-scan
+    name: security-checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
