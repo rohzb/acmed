@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.1.6] - 2026-04-19
+
+### Added
+- Added GitHub Actions secret scanning workflow with TruffleHog and Gitleaks.
+- Added release automation workflow triggered by `vX.Y.Z` tag pushes to build
+  artifacts and publish a GitHub Release.
+
+### Changed
+- Hardened scanner supply-chain pinning by locking TruffleHog action to a
+  commit SHA and Gitleaks image to an immutable digest.
+- Updated Gitleaks invocation to support repository-scoped false-positive
+  suppression via `.gitleaksignore`.
+- Documented tag-driven release process in the project README.
+
 ## [0.1.5] - 2026-04-19
 
 ### Changed
