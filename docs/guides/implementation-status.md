@@ -54,7 +54,7 @@ Per-order artifacts include files such as:
 Current tests are in `tests/` and run with:
 
 ```bash
-PYTHONPATH=src pytest
+pytest
 ```
 
 The suite currently covers:

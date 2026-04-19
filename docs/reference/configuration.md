@@ -16,6 +16,8 @@ server:
   host: 0.0.0.0
   port: 8443
   tls_enabled: true
+  tls_cert_file: /etc/acmed/tls/server.crt
+  tls_key_file: /etc/acmed/tls/server.key
   development_mode: false
   external_base_url: null
   trust_forwarded_headers: false
@@ -177,6 +179,12 @@ Server URL-construction rules:
 - trust `X-Forwarded-Host` and `X-Forwarded-Proto` only when `server.trust_forwarded_headers: true`
 - when `server.trust_forwarded_headers: true`, require `server.trusted_proxy_cidrs` and only honor forwarded headers when the direct peer source IP is within those CIDRs
 - reject startup when forwarded-header trust is enabled without trusted proxy CIDRs
+
+TLS listener rules:
+
+- when `server.tls_enabled: true`, both `server.tls_cert_file` and `server.tls_key_file` are required
+- startup fails if either TLS file path is missing or does not exist
+- `server.tls_enabled: false` is only allowed in `server.development_mode: true`
 
 ### 1.3 Identity and admin configuration
 

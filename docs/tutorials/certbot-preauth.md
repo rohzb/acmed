@@ -4,7 +4,7 @@
 
 Use this tutorial when:
 
-- `acmed` is running (for example at `acme.amgro.de:8443`)
+- `acmed` is running (for example at `acme.example.invalid:8443`)
 - you want to request a certificate from a different machine with `certbot`
 - you want pre-authorization to be explicit in policy
 
@@ -155,7 +155,7 @@ certbot certonly \
   --standalone \
   --preferred-challenges http \
   --http-01-port 80 \
-  --server http://acme.amgro.de:8443/acme/directory \
+  --server http://acme.example.invalid:8443/acme/directory \
   --no-verify-ssl \
   --agree-tos \
   --register-unsafely-without-email \

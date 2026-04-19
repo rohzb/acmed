@@ -45,7 +45,7 @@ pip install -e .
 
 export ACMED_TOKEN_ADMIN='replace-with-random-token'
 
-PYTHONPATH=src python -m acmed.main config.example.yml
+python -m acmed.main config.example.yml
 ```
 
 Quick check:
@@ -66,11 +66,11 @@ Have a look at `config.example.yml` for a starting point.
 ## Development
 
 ```bash
-PYTHONPATH=src pytest
+pytest
 ```
 
 ```bash
-PYTHONPATH=src python -m acmed.main <config.yml>
+python -m acmed.main <config.yml>
 ```
 
 Docs are under `docs/` (start with `docs/README.md`).

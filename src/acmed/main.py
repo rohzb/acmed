@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import ipaddress
 import signal
+import ssl
 import sys
 from dataclasses import dataclass
 from types import FrameType
@@ -203,6 +204,17 @@ def run(config_path: str) -> None:
 
     app = build_wsgi_app(runtime)
     with make_server(runtime.config.server.host, runtime.config.server.port, app) as server:
+        if runtime.config.server.tls_enabled:
+            cert_file = runtime.config.server.tls_cert_file
+            key_file = runtime.config.server.tls_key_file
+            if cert_file is None or key_file is None:
+                raise RuntimeError(
+                    "TLS is enabled but tls_cert_file or tls_key_file is not configured"
+                )
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+            server.socket = context.wrap_socket(server.socket, server_side=True)
         server.timeout = 1
         while not should_stop["value"]:
             server.handle_request()

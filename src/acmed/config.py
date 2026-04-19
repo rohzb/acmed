@@ -26,6 +26,8 @@ class ServerConfig:
     host: str = "0.0.0.0"
     port: int = 8443
     tls_enabled: bool = True
+    tls_cert_file: str | None = None
+    tls_key_file: str | None = None
     development_mode: bool = False
     external_base_url: str | None = None
     trust_forwarded_headers: bool = False
@@ -346,6 +348,15 @@ def load_config(path: str | Path) -> AppConfig:
     server = ServerConfig(**raw.get("server", {}))
     if not server.tls_enabled and not server.development_mode:
         raise ConfigError("TLS must be enabled outside development mode")
+    if server.tls_enabled:
+        if not server.tls_cert_file or not server.tls_key_file:
+            raise ConfigError(
+                "server.tls_enabled=true requires server.tls_cert_file and server.tls_key_file"
+            )
+        if not Path(server.tls_cert_file).exists():
+            raise ConfigError(f"TLS certificate file not found: {server.tls_cert_file}")
+        if not Path(server.tls_key_file).exists():
+            raise ConfigError(f"TLS key file not found: {server.tls_key_file}")
     if server.trust_forwarded_headers:
         if not server.trusted_proxy_cidrs:
             raise ConfigError(

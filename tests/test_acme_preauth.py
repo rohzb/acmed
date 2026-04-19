@@ -15,7 +15,8 @@ def _write_cfg(tmp_path: Path) -> Path:
 server:
   host: 127.0.0.1
   port: 8443
-  tls_enabled: true
+  tls_enabled: false
+  development_mode: true
 
 identity:
   api_tokens:

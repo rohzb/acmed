@@ -34,7 +34,7 @@ pip install -e .
 ## Test
 
 ```bash
-PYTHONPATH=src pytest
+pytest
 ```
 
 ## Documentation Requirements

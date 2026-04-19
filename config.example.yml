@@ -4,7 +4,7 @@
 # what each section does. Start with the defaults, then trim what you do not need.
 #
 # Base setup notes:
-# - This example runs with TLS enabled.
+# - This example uses plain HTTP for local testing only.
 # - API token auth is enabled.
 # - ACME EAB is disabled (set require_eab=true + credentials to enable).
 # - Mock issuer is used for local testing.
@@ -15,8 +15,12 @@ server:
   host: 127.0.0.1
   port: 8443
 
-  # Keep true for real deployments.
-  tls_enabled: true
+  # Keep false for local development unless you provide cert/key files below.
+  tls_enabled: false
+
+  # Required when tls_enabled=true.
+  # tls_cert_file: /etc/acmed/tls/server.crt
+  # tls_key_file: /etc/acmed/tls/server.key
 
   # Development mode relaxes some safety rules.
   # Keep false in production.

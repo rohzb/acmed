@@ -11,7 +11,8 @@ def _base_config(tmp_path: Path) -> str:
 server:
   host: 127.0.0.1
   port: 8443
-  tls_enabled: true
+  tls_enabled: false
+  development_mode: true
 
 identity:
   api_tokens:
@@ -78,7 +79,19 @@ def test_load_config_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 def test_trusted_bypass_requires_development_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
-    base = _base_config(tmp_path)
+    cert_path = tmp_path / "server.crt"
+    key_path = tmp_path / "server.key"
+    cert_path.write_text("dummy", encoding="utf-8")
+    key_path.write_text("dummy", encoding="utf-8")
+    base = _base_config(tmp_path).replace(
+        "  tls_enabled: false\n  development_mode: true",
+        (
+            "  tls_enabled: true\n"
+            f"  tls_cert_file: {cert_path}\n"
+            f"  tls_key_file: {key_path}\n"
+            "  development_mode: false"
+        ),
+    )
     cfg_text = base + "    challenge_validation_mode: trusted_bypass\n"
     path = tmp_path / "cfg.yml"
     path.write_text(cfg_text, encoding="utf-8")
@@ -88,7 +101,7 @@ def test_trusted_bypass_requires_development_mode(tmp_path: Path, monkeypatch: p
 
 def test_trusted_bypass_allowed_in_development_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
-    base = _base_config(tmp_path).replace("  tls_enabled: true", "  tls_enabled: false\n  development_mode: true")
+    base = _base_config(tmp_path)
     cfg_text = base + "    challenge_validation_mode: trusted_bypass\n"
     path = tmp_path / "cfg.yml"
     path.write_text(cfg_text, encoding="utf-8")
@@ -98,7 +111,10 @@ def test_trusted_bypass_allowed_in_development_mode(tmp_path: Path, monkeypatch:
 
 def test_forwarded_headers_require_trusted_proxy_cidrs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
-    base = _base_config(tmp_path).replace("  tls_enabled: true", "  tls_enabled: true\n  trust_forwarded_headers: true")
+    base = _base_config(tmp_path).replace(
+        "  tls_enabled: false\n  development_mode: true",
+        "  tls_enabled: false\n  development_mode: true\n  trust_forwarded_headers: true",
+    )
     path = tmp_path / "cfg.yml"
     path.write_text(base, encoding="utf-8")
     with pytest.raises(ConfigError):
@@ -108,8 +124,20 @@ def test_forwarded_headers_require_trusted_proxy_cidrs(tmp_path: Path, monkeypat
 def test_forwarded_headers_reject_invalid_proxy_cidr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
     base = _base_config(tmp_path).replace(
-        "  tls_enabled: true",
-        "  tls_enabled: true\n  trust_forwarded_headers: true\n  trusted_proxy_cidrs: [invalid-cidr]",
+        "  tls_enabled: false\n  development_mode: true",
+        "  tls_enabled: false\n  development_mode: true\n  trust_forwarded_headers: true\n  trusted_proxy_cidrs: [invalid-cidr]",
+    )
+    path = tmp_path / "cfg.yml"
+    path.write_text(base, encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(path)
+
+
+def test_tls_enabled_requires_cert_and_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    base = _base_config(tmp_path).replace(
+        "  tls_enabled: false\n  development_mode: true",
+        "  tls_enabled: true\n  development_mode: false",
     )
     path = tmp_path / "cfg.yml"
     path.write_text(base, encoding="utf-8")
