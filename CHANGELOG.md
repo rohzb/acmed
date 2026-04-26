@@ -16,6 +16,15 @@ The format is inspired by Keep a Changelog and follows the repository policy in
   and emits an explicit `order.issuance_failed` audit event even when the
   backend raises unexpectedly.
 
+## [0.2.5] - 2026-04-26
+
+### Fixed
+- Added `force_renew` as an issuer profile option for `acme_sh` backends.
+- Default behavior is now reuse-first (`force_renew: false`): if `acme.sh`
+  returns the existing-cert hint (`Add '--force' to force to renew.`), the
+  backend continues with `--install-cert` instead of failing.
+- When `force_renew: true`, backend appends `--force` to `acme.sh --issue`.
+
 ## [0.2.4] - 2026-04-26
 
 ### Fixed

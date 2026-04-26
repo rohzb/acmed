@@ -58,6 +58,7 @@ issuers:
     ca_directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
     challenge_mode: dns-01
     plugin_name: dns_cf
+    force_renew: false
     credential_env: [CF_Token]
   - name: certbot-dns
     type: certbot

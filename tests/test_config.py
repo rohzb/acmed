@@ -77,6 +77,29 @@ def test_load_config_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert cfg.policies[0].allowed_domains[0].syntax == "exact"
 
 
+def test_load_config_accepts_force_renew_on_acme_sh_issuer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    config_text = _base_config(tmp_path).replace(
+        "issuers:\n  - name: mock\n    type: mock\n",
+        (
+            "issuers:\n"
+            "  - name: acmesh-dns\n"
+            "    type: acme_sh\n"
+            "    executable: /bin/sh\n"
+            "    challenge_mode: dns-01\n"
+            "    plugin_name: dns_hetznercloud\n"
+            "    force_renew: true\n"
+        ),
+    ).replace("allowed_issuers: [mock]", "allowed_issuers: [acmesh-dns]")
+    path = tmp_path / "cfg.yml"
+    path.write_text(config_text, encoding="utf-8")
+
+    cfg = load_config(path)
+
+    assert cfg.issuers[0].name == "acmesh-dns"
+    assert cfg.issuers[0].force_renew is True
+
+
 def test_trusted_bypass_requires_development_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
     cert_path = tmp_path / "server.crt"

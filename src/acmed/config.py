@@ -109,6 +109,7 @@ class IssuerProfile:
     credential_env: list[str] | None = None
     capability_scope: list[AllowedDomainEntry] | None = None
     timeout_seconds: int = 120
+    force_renew: bool = False
 
 
 @dataclass(slots=True)

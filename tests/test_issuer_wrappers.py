@@ -231,6 +231,43 @@ def test_acme_sh_reuses_existing_cert_without_forced_renew(monkeypatch, tmp_path
     assert "--install-cert" in calls[1]
 
 
+def test_acme_sh_force_renew_adds_force_flag(monkeypatch, tmp_path):
+    backend = AcmeShIssuerBackend()
+    calls = []
+
+    def fake_run(argv, profile, cwd):  # noqa: ANN001
+        calls.append(argv)
+        if "--install-cert" in argv:
+            (tmp_path / "certificate.pem").write_text("CERT", encoding="utf-8")
+            (tmp_path / "chain.pem").write_text("CHAIN", encoding="utf-8")
+            (tmp_path / "fullchain.pem").write_text("FULLCHAIN", encoding="utf-8")
+            (tmp_path / "private.key").write_text("KEY", encoding="utf-8")
+        return SubprocessResult(command=argv, exit_code=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(backend, "_run", fake_run)
+
+    result = backend.issue(
+        profile=IssuerProfile(
+            name="acmesh-dns",
+            type="acme_sh",
+            executable="/usr/local/bin/acme.sh",
+            challenge_mode="dns-01",
+            plugin_name="dns_hetznercloud",
+            force_renew=True,
+        ),
+        request=IssueRequest(
+            order_id="order-force-1",
+            dns_names=["testme.amgro.de"],
+            common_name="testme.amgro.de",
+            csr_pem=None,
+            artifacts_dir=str(tmp_path),
+        ),
+    )
+
+    assert result.success is True
+    assert "--force" in calls[0]
+
+
 def test_certbot_marks_missing_required_artifacts_as_error(monkeypatch, tmp_path):
     backend = CertbotIssuerBackend()
 

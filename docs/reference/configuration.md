@@ -71,6 +71,7 @@ issuers:
     ca_directory_url: https://pebble:14000/dir
     challenge_mode: dns-01
     plugin_name: dns_cf
+    force_renew: false
     credential_env:
       - CF_Token
     capability_scope:
@@ -221,6 +222,7 @@ Each issuer profile should declare:
 - the target CA directory URL or equivalent endpoint configuration
 - the external validation mode such as `dns-01` or `http-01`
 - the external plugin name when one is required
+- optional `force_renew` (`true|false`) for `acme_sh` backends
 - the credential environment variables needed by that issuer
 - the broad capability scope that the issuer can technically validate
 
@@ -228,6 +230,7 @@ Issuer-profile rules:
 
 - treat issuer profiles as privileged operational objects, not as requester-supplied plugin choices
 - keep executable paths explicit
+- keep `force_renew` disabled by default unless forced reissuance is explicitly required
 - keep credential sources outside YAML secret literals
 - record capability scope so operators can review the real blast radius of each issuer profile
 - reject startup if an issuer profile references an unsupported adapter type or missing executable path

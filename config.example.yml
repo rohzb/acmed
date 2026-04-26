@@ -148,6 +148,7 @@ issuers:
   #   ca_directory_url: https://pebble:14000/dir
   #   challenge_mode: dns-01
   #   plugin_name: dns_cf
+  #   force_renew: false
   #   credential_env: [CF_Token]
 
   # Not needed for base setup.

@@ -69,11 +69,13 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             "--dns",
             profile.plugin_name,
         ]
+        if profile.force_renew:
+            issue_argv.append("--force")
         for dns_name in request.dns_names:
             issue_argv.extend(["-d", dns_name])
 
         issue_result = self._run(argv=issue_argv, profile=profile, cwd=request.artifacts_dir)
-        can_reuse_existing = self._is_existing_cert_reuse_hint(issue_result)
+        can_reuse_existing = (not profile.force_renew) and self._is_existing_cert_reuse_hint(issue_result)
         if issue_result.exit_code != 0 and not can_reuse_existing:
             return IssueResult(
                 success=False,
