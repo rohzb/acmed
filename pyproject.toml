@@ -1,6 +1,6 @@
 [project]
 name = "acmed"
-version = "0.2.6"
+version = "0.2.7"
 description = "Policy-driven ACME broker service"
 requires-python = ">=3.11"
 license = "MIT"

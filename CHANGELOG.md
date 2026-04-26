@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.2.7] - 2026-04-26
+
+### Fixed
+- Restored compatibility with legacy Docker build target naming by keeping
+  `runtime-base` as a valid stage in `docker/Dockerfile`.
+- Added a `runtime` alias stage that maps to `runtime-base` so both older and
+  newer compose/build paths continue to work.
+- Set `ACMED_SOURCE_DIR` default to `.` for upstream-repository Docker builds
+  that do not pass a monorepo-style source directory argument.
+
 ## [0.2.6] - 2026-04-26
 
 ### Added
