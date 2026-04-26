@@ -55,11 +55,7 @@ jobs:
     needs: verify_secret_scan
     runs-on: ubuntu-latest
     env:
-<<<<<<< HEAD
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/acmed
-=======
-      IMAGE_NAME: ghcr.io/rohzb/acmed
->>>>>>> 85beb0a (chore(release): prep v0.2.0 for consolidated acmed repo)
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -97,6 +93,11 @@ jobs:
 
           if ! grep -qE "^## \\[${VERSION}\\] " CHANGELOG.md; then
             echo "CHANGELOG.md is missing a section for [${VERSION}]." >&2
+            exit 1
+          fi
+
+          if [[ ! -f "docs/releases/v${VERSION}.md" ]]; then
+            echo "docs/releases/v${VERSION}.md is missing." >&2
             exit 1
           fi
 

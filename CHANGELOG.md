@@ -5,8 +5,6 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
-<<<<<<< HEAD
-=======
 ## [0.2.0] - 2026-04-25
 
 ### Added
@@ -33,8 +31,6 @@ The format is inspired by Keep a Changelog and follows the repository policy in
   split wrapper directories.
 - Renamed published core runtime image references from
   `ghcr.io/rohzb/acmed-core:*` to `ghcr.io/rohzb/acmed:*`.
-
->>>>>>> 85beb0a (chore(release): prep v0.2.0 for consolidated acmed repo)
 ## [0.1.7] - 2026-04-19
 
 ### Added
