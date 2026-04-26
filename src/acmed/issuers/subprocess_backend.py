@@ -28,6 +28,22 @@ class SubprocessResult:
 class SubprocessIssuerMixin:
     """Shared subprocess execution helper for CLI-based issuer backends."""
 
+    def _coerce_text(self, value: str | bytes | None) -> str:
+        """Normalize subprocess output values to UTF-8 text.
+
+        Args:
+            value: Captured subprocess output payload.
+
+        Returns:
+            Decoded text payload, or an empty string when input is `None`.
+        """
+
+        if value is None:
+            return ""
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return value
+
     def _filtered_env(self, profile: IssuerProfile) -> dict[str, str]:
         """Build a minimal environment with only required credential variables.
 
@@ -75,13 +91,22 @@ class SubprocessIssuerMixin:
                 timeout=profile.timeout_seconds,
             )
         except subprocess.TimeoutExpired as exc:
-            return SubprocessResult(argv, exit_code=124, stdout=exc.stdout or "", stderr="timeout")
+            timeout_detail = (
+                f"issuer subprocess timeout after {profile.timeout_seconds}s: "
+                f"{self._coerce_text(exc.stderr).strip() or self._coerce_text(exc.stdout).strip() or 'no output'}"
+            )
+            return SubprocessResult(
+                argv,
+                exit_code=124,
+                stdout=self._coerce_text(exc.stdout),
+                stderr=timeout_detail,
+            )
 
         return SubprocessResult(
             command=argv,
             exit_code=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
+            stdout=self._coerce_text(completed.stdout),
+            stderr=self._coerce_text(completed.stderr),
         )
 
     def _read_if_exists(self, path: Path) -> str | None:

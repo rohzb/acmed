@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+import traceback
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -36,6 +37,13 @@ class Worker:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._issuer_backends = default_issuer_backends()
+        configured_types = {profile.type for profile in self._config.issuers}
+        missing_backends = sorted(configured_types - set(self._issuer_backends))
+        if missing_backends:
+            raise RuntimeError(
+                "issuer backend not registered for types: "
+                f"{missing_backends}; available={sorted(self._issuer_backends)}"
+            )
         self._authorizers = AuthorizerService(config)
         self._proof_handlers = {}
         for handler in self._config.proof_handlers:
@@ -176,16 +184,70 @@ class Worker:
 
         artifact_dir = self._storage.create_artifact_dir(order.id)
         started_at = utc_now()
-        result = issuer.issue(
-            profile=issuer_profile,
-            request=IssueRequest(
+        try:
+            result = issuer.issue(
+                profile=issuer_profile,
+                request=IssueRequest(
+                    order_id=order.id,
+                    dns_names=order.dns_names,
+                    common_name=order.common_name,
+                    csr_pem=None,
+                    artifacts_dir=str(artifact_dir),
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            finished_at = utc_now()
+            stderr_text = "\n".join(
+                [
+                    f"issuer backend raised {exc.__class__.__name__}: {exc}",
+                    traceback.format_exc().strip(),
+                ]
+            ).strip()
+            stdout_path = self._storage.write_artifact(
+                order.id,
+                "issuer-output.log",
+                "",
+                sensitive=False,
+            )
+            stderr_path = self._storage.write_artifact(
+                order.id,
+                "challenge-output.log",
+                stderr_text,
+                sensitive=False,
+            )
+            self._storage.write_issuance_attempt(
                 order_id=order.id,
-                dns_names=order.dns_names,
-                common_name=order.common_name,
-                csr_pem=None,
-                artifacts_dir=str(artifact_dir),
-            ),
-        )
+                issuer_name=order.issuer_name,
+                attempt_number=order.retry_count + 1,
+                command=f"{issuer_profile.type}.issue()",
+                exit_code=70,
+                stdout_path=str(stdout_path),
+                stderr_path=str(stderr_path),
+                started_at=started_at,
+                finished_at=finished_at,
+                result_code="issuer_exception",
+            )
+            failure_summary = _summarize_issuer_failure(
+                exit_code=70,
+                stdout="",
+                stderr=stderr_text,
+            )
+            self._write_audit(
+                order.id,
+                "order.issuance_failed",
+                "worker",
+                self._worker_id,
+                failure_summary,
+                {
+                    "issuer": order.issuer_name,
+                    "stdout_path": str(stdout_path),
+                    "stderr_path": str(stderr_path),
+                },
+            )
+            raise RuntimeError(
+                f"{failure_summary}; stdout_log={stdout_path}; stderr_log={stderr_path}"
+            ) from exc
+
         finished_at = utc_now()
 
         stdout_path = self._storage.write_artifact(order.id, "issuer-output.log", result.stdout, sensitive=False)
