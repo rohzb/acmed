@@ -1,0 +1,90 @@
+server:
+  host: 0.0.0.0
+  port: 8443
+  tls_enabled: false
+  development_mode: true
+  trust_forwarded_headers: false
+
+identity:
+  api_tokens:
+    enabled: true
+    tokens:
+      - token_id: admin
+        subject: acmed-admin
+        secret_env: ACMED_TOKEN_ADMIN
+        roles: [requester]
+  mtls:
+    enabled: false
+
+access:
+  admin_subjects: [acmed-admin]
+
+limits:
+  max_dns_names_per_order: 25
+  max_csr_bytes: 32768
+  max_request_body_bytes: 65536
+  create_order_rate_limit_per_minute: 30
+
+orders:
+  default_ttl_seconds: 3600
+  claim_ttl_seconds: 300
+  max_retries: 3
+
+acme:
+  enabled: true
+  directory_path: /acme/directory
+  require_eab: false
+  allow_wildcards: false
+  supported_challenge_types: [dns-01, http-01]
+
+storage:
+  sqlite_path: /app/data/acmed.db
+  artifacts_root: /app/data/orders
+
+workers:
+  poll_interval_seconds: 2
+  max_parallel_orders: 4
+
+issuers:
+  - name: remote-acmesh
+    mode: remote
+    remote:
+      endpoint_url: http://issuer-acmesh:8081
+      timeout_seconds: 120
+      auth:
+        mode: token
+        token_secret_ref: ACMED_REMOTE_PLUGIN_TOKEN
+        token_secret_next_ref: ACMED_REMOTE_PLUGIN_TOKEN_NEXT
+        token_overlap_until_utc: 2026-05-01T00:00:00Z
+
+  - name: remote-certbot
+    mode: remote
+    remote:
+      endpoint_url: http://issuer-certbot:8081
+      timeout_seconds: 120
+      auth:
+        mode: token
+        token_secret_ref: ACMED_REMOTE_PLUGIN_TOKEN
+        token_secret_next_ref: ACMED_REMOTE_PLUGIN_TOKEN_NEXT
+        token_overlap_until_utc: 2026-05-01T00:00:00Z
+
+proof_handlers:
+  - name: no-proof
+    type: none
+
+authorizers:
+  - name: allow-dev-subnet
+    type: source_subnet
+    source_subnets: [0.0.0.0/0]
+
+policies:
+  - name: dev-any
+    requester_match:
+      authorizers: [allow-dev-subnet]
+    allowed_domains:
+      - syntax: suffix
+        value: .example.org
+    allowed_issuers: [remote-acmesh, remote-certbot]
+    proof_handler: no-proof
+    csr_mode: either
+    challenge_validation_mode: trusted_bypass

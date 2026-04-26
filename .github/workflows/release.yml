@@ -55,7 +55,11 @@ jobs:
     needs: verify_secret_scan
     runs-on: ubuntu-latest
     env:
+<<<<<<< HEAD
       IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/acmed
+=======
+      IMAGE_NAME: ghcr.io/rohzb/acmed
+>>>>>>> 85beb0a (chore(release): prep v0.2.0 for consolidated acmed repo)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

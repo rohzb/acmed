@@ -1,0 +1,7 @@
+title = "acmed-core gitleaks config"
+
+[allowlist]
+description = "Allow known fake token used in auth negative tests"
+regexes = [
+  '''\bdefinitely-wrong-token\b'''
+]

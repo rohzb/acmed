@@ -11,6 +11,7 @@ If you are new here, start with:
 
 For day-to-day implementation work, these are usually the most useful:
 
+- [`guides/migration-from-gen2-split.md`](guides/migration-from-gen2-split.md)
 - [`guides/implementation-guide.md`](guides/implementation-guide.md)
 - [`guides/implementation-roadmap.md`](guides/implementation-roadmap.md)
 - [`architecture/data-model.md`](architecture/data-model.md)

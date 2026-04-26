@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+<<<<<<< HEAD
+=======
+## [0.2.0] - 2026-04-25
+
+### Added
+- Added dual issuer execution modes (`local` and `remote`) to support plugin
+  architecture evolution.
+- Added the `remote_http` issuer adapter with startup capability and version
+  checks.
+- Added remote issuer configuration fields for endpoint, auth, and timeout
+  behavior.
+- Added unified deployment bundles under `deploy/` with both source-build
+  compose presets (`compose.*.source.yaml`) and prebuilt-image presets
+  (`compose.*.image.yaml`).
+- Added migration guidance in `docs/guides/migration-from-gen2-split.md` for
+  the gen2 split-to-single-repo consolidation.
+
+### Changed
+- Normalized issuer `reason_code` propagation in issuance results for clearer
+  downstream error handling.
+- Hardened and clarified GitHub Actions workflows, including Docker smoke-test
+  health-probe reliability and explicit probe progress logging.
+- Upgraded workflow actions to current major versions and enabled Node 24
+  JavaScript action runtime usage.
+- Consolidated gen2 layout to a single canonical `acmed` repository and removed
+  split wrapper directories.
+- Renamed published core runtime image references from
+  `ghcr.io/rohzb/acmed-core:*` to `ghcr.io/rohzb/acmed:*`.
+
+>>>>>>> 85beb0a (chore(release): prep v0.2.0 for consolidated acmed repo)
 ## [0.1.7] - 2026-04-19
 
 ### Added

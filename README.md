@@ -114,6 +114,17 @@ Configuration is YAML-based around three parts:
 
 Have a look at `config.example.yml` for a starting point.
 
+## Deployment bundles
+
+Deployment presets are in `deploy/` and include both previously split modes:
+
+- source-build compose presets under `deploy/compose/compose.*.source.yaml`
+- prebuilt-image compose presets under `deploy/compose/compose.*.image.yaml`
+
+See [`deploy/README.md`](deploy/README.md) for quick-start commands and mode selection.
+
+Migration details are documented in [`docs/guides/migration-from-gen2-split.md`](docs/guides/migration-from-gen2-split.md).
+
 ## Development
 
 ```bash

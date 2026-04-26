@@ -1,0 +1,17 @@
+services:
+  acmed:
+    image: ghcr.io/rohzb/acmed:0.2.0
+    restart: unless-stopped
+    command: ["python", "-m", "acmed.main", "/app/config/config.yml"]
+    environment:
+      ACMED_TOKEN_ADMIN: ${ACMED_TOKEN_ADMIN:?set ACMED_TOKEN_ADMIN}
+    volumes:
+      - ../config/config.yml:/app/config/config.yml:ro
+      - ./runtime/core-data:/app/data
+    ports:
+      - "8443:8443"
+    networks: [acmed_internal]
+
+networks:
+  acmed_internal:
+    driver: bridge

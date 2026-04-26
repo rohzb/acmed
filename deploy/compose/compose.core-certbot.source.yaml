@@ -1,0 +1,37 @@
+services:
+  acmed:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: runtime-base
+    image: acmed:0.2.0
+    container_name: acmed
+    restart: unless-stopped
+    command: ["python", "-m", "acmed.main", "/app/config/config.yml"]
+    environment:
+      ACMED_TOKEN_ADMIN: ${ACMED_TOKEN_ADMIN:-acmed-admin-dev-token}
+      ACMED_REMOTE_PLUGIN_TOKEN: ${ACMED_REMOTE_PLUGIN_TOKEN:-acmed-plugin-dev-token}
+    volumes:
+      - ../config/config.remote.example.yml:/app/config/config.yml:ro
+      - ./runtime/core-data:/app/data
+    ports:
+      - "8443:8443"
+    depends_on:
+      issuer-certbot:
+        condition: service_started
+    networks: [acmed_internal]
+
+  issuer-certbot:
+    build:
+      context: ../../..
+      dockerfile: acmed-issuer-certbot/docker/Dockerfile
+    image: acmed-issuer-certbot:0.2.0
+    container_name: acmed-issuer-certbot
+    restart: unless-stopped
+    environment:
+      ACMED_REMOTE_PLUGIN_TOKEN: ${ACMED_REMOTE_PLUGIN_TOKEN:-acmed-plugin-dev-token}
+    networks: [acmed_internal]
+
+networks:
+  acmed_internal:
+    driver: bridge
