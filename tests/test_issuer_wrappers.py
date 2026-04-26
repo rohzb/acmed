@@ -48,7 +48,7 @@ def test_acme_sh_uses_dns_plugin_and_exports_expected_artifacts(monkeypatch, tmp
 
     issue_call = calls[0]
     assert "--challenge-alias" not in issue_call
-    assert "--force" in issue_call
+    assert "--force" not in issue_call
     assert "--dns" in issue_call
     assert issue_call[issue_call.index("--dns") + 1] == "dns_hetzner"
 
@@ -186,6 +186,49 @@ def test_acme_sh_marks_missing_required_artifacts_as_error(monkeypatch, tmp_path
     assert result.success is False
     assert result.exit_code == 65
     assert "missing required artifacts" in result.stderr
+
+
+def test_acme_sh_reuses_existing_cert_without_forced_renew(monkeypatch, tmp_path):
+    backend = AcmeShIssuerBackend()
+    calls = []
+
+    def fake_run(argv, profile, cwd):  # noqa: ANN001
+        calls.append(argv)
+        if "--issue" in argv:
+            return SubprocessResult(
+                command=argv,
+                exit_code=2,
+                stdout="",
+                stderr="[Sun Apr 26 17:17:11 UTC 2026] Add '--force' to force to renew.",
+            )
+        (tmp_path / "certificate.pem").write_text("CERT", encoding="utf-8")
+        (tmp_path / "chain.pem").write_text("CHAIN", encoding="utf-8")
+        (tmp_path / "fullchain.pem").write_text("FULLCHAIN", encoding="utf-8")
+        (tmp_path / "private.key").write_text("KEY", encoding="utf-8")
+        return SubprocessResult(command=argv, exit_code=0, stdout="installed", stderr="")
+
+    monkeypatch.setattr(backend, "_run", fake_run)
+
+    result = backend.issue(
+        profile=IssuerProfile(
+            name="acmesh-dns",
+            type="acme_sh",
+            executable="/usr/local/bin/acme.sh",
+            challenge_mode="dns-01",
+            plugin_name="dns_hetznercloud",
+        ),
+        request=IssueRequest(
+            order_id="order-reuse-1",
+            dns_names=["testme.amgro.de"],
+            common_name="testme.amgro.de",
+            csr_pem=None,
+            artifacts_dir=str(tmp_path),
+        ),
+    )
+
+    assert result.success is True
+    assert len(calls) == 2
+    assert "--install-cert" in calls[1]
 
 
 def test_certbot_marks_missing_required_artifacts_as_error(monkeypatch, tmp_path):

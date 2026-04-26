@@ -19,6 +19,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
 
     name: str = "acme_sh"
 
+    _FORCE_RENEW_HINT: str = "Add '--force' to force to renew."
+
     def issue(self, profile: IssuerProfile, request: IssueRequest) -> IssueResult:
         """Run `acme.sh` using the configured issuer profile.
 
@@ -62,7 +64,6 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
         issue_argv = [
             executable,
             "--issue",
-            "--force",
             "--server",
             profile.ca_directory_url or "",
             "--dns",
@@ -72,7 +73,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             issue_argv.extend(["-d", dns_name])
 
         issue_result = self._run(argv=issue_argv, profile=profile, cwd=request.artifacts_dir)
-        if issue_result.exit_code != 0:
+        can_reuse_existing = self._is_existing_cert_reuse_hint(issue_result)
+        if issue_result.exit_code != 0 and not can_reuse_existing:
             return IssueResult(
                 success=False,
                 result_code="issuer_error",
@@ -145,3 +147,18 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             fullchain_pem=fullchain,
             private_key_pem=key,
         )
+
+    def _is_existing_cert_reuse_hint(self, result: SubprocessResult) -> bool:
+        """Return whether acme.sh asks to reuse existing cert state.
+
+        Args:
+            result: Captured result of `acme.sh --issue`.
+
+        Returns:
+            `True` when acme.sh indicates an existing cert can be reused without
+            forcing renewal.
+        """
+
+        if result.exit_code != 2:
+            return False
+        return self._FORCE_RENEW_HINT in f"{result.stdout}\n{result.stderr}"

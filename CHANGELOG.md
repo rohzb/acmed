@@ -16,6 +16,14 @@ The format is inspired by Keep a Changelog and follows the repository policy in
   and emits an explicit `order.issuance_failed` audit event even when the
   backend raises unexpectedly.
 
+## [0.2.4] - 2026-04-26
+
+### Fixed
+- Restored non-forced renewal as default for `acme_sh` issuance.
+- When `acme.sh --issue` returns exit code `2` with
+  `Add '--force' to force to renew.`, the backend now reuses existing
+  certificate state by continuing with `--install-cert` instead of failing.
+
 ## [0.2.3] - 2026-04-26
 
 ### Fixed
