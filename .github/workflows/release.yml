@@ -6,64 +6,43 @@ on:
       - "v*.*.*"
 
 permissions:
+  actions: read
   checks: read
   contents: write
   packages: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
-  verify_secret_scan:
+  verify_security_scan:
     runs-on: ubuntu-latest
     steps:
       - name: Verify security-checks check succeeded on tagged commit
-        uses: actions/github-script@v7
+        uses: rohzb/ci-actions/wait-for-workflows@fa15ae6132d071b36c875d64979fa70019b0e49f
         with:
-          script: |
-            const { owner, repo } = context.repo;
-            const ref = context.sha;
-            const expectedName = "security-checks";
-
-            const res = await github.rest.checks.listForRef({
-              owner,
-              repo,
-              ref,
-              per_page: 100,
-            });
-
-            const candidates = res.data.check_runs.filter((run) => run.name === expectedName);
-            if (candidates.length === 0) {
-              core.setFailed(
-                `No '${expectedName}' check run found for commit ${ref}. ` +
-                "Push commit to main and wait for Security Checks workflow success before tagging."
-              );
-              return;
-            }
-
-            const successful = candidates.some(
-              (run) => run.status === "completed" && run.conclusion === "success"
-            );
-
-            if (!successful) {
-              const states = candidates
-                .map((run) => `${run.id}:${run.status}/${run.conclusion}`)
-                .join(", ");
-              core.setFailed(
-                `'${expectedName}' check has not succeeded for commit ${ref}. Found: ${states}`
-              );
-            }
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflows: '["Security Checks"]'
+          ref: ${{ github.sha }}
+          mode: all_success
+          timeout-seconds: "1200"
+          poll-interval-seconds: "15"
+          require-found: "true"
+          fail-fast: "false"
 
   release:
-    needs: verify_secret_scan
+    needs: verify_security_scan
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
 
@@ -126,7 +105,7 @@ jobs:
           (cd dist && sha256sum * > SHA256SUMS)
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: acmed-${{ env.VERSION }}-dist
           path: dist/*
