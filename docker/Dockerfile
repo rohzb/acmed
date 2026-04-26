@@ -1,10 +1,10 @@
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim AS runtime-base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOME=/app/data/home
 
-ARG ACMED_SOURCE_DIR=acmed
+ARG ACMED_SOURCE_DIR=.
 ARG ACMED_PLUGIN_DIRS=
 ARG ACMESH_REF=3.1.2
 
@@ -37,3 +37,7 @@ USER acmed:acmed
 EXPOSE 8443
 
 ENTRYPOINT ["/usr/local/bin/acmed-entrypoint"]
+
+# Compatibility alias: keep `runtime` available for newer compose presets while
+# preserving legacy `runtime-base` CI/build targets.
+FROM runtime-base AS runtime
