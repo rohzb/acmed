@@ -12,7 +12,7 @@ RUN apt-get update \
       socat \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ACMESH_REF=v3.0.5
+ARG ACMESH_REF=3.1.2
 RUN curl --fail --show-error --silent --location \
     "https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACMESH_REF}/acme.sh" \
     --output /usr/local/bin/acme.sh \

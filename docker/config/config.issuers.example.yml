@@ -1,9 +1,9 @@
 # Docker issuer-enabled runtime example (acme.sh + certbot).
 #
-# Use this with docker/docker-compose.issuers.yml and choose image target:
-# - runtime-acmesh   (acme.sh only)
-# - runtime-certbot  (certbot only)
-# - runtime-issuers  (both)
+# Use this with docker/docker-compose.issuers.yml and choose addons via:
+# - ACMED_PLUGIN_DIRS=acmed-issuer-acmesh
+# - ACMED_PLUGIN_DIRS=acmed-issuer-certbot
+# - ACMED_PLUGIN_DIRS=acmed-issuer-acmesh,acmed-issuer-certbot
 
 server:
   host: 0.0.0.0

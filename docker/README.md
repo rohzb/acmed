@@ -77,8 +77,9 @@ Run these commands from the repository root (for example after `git clone https:
 
 ## Optional Issuer Tooling Images
 
-The default image is minimal and does not include `acme.sh` or `certbot`.
-When issuer CLIs are needed, start with:
+The default image includes only core `acmed`.
+Issuer CLIs and extensions are added through selected plugin addons.
+When issuer tooling is needed, start with:
 
 ```bash
 ./docker/scripts/up-with-issuers.sh both
@@ -86,9 +87,19 @@ When issuer CLIs are needed, start with:
 
 Valid modes:
 
-- `acmesh`: image target `runtime-acmesh` (`acme.sh` only)
-- `certbot`: image target `runtime-certbot` (`certbot` only)
-- `both`: image target `runtime-issuers` (`acme.sh` + `certbot`)
+- `acmesh`: plugin addons `acmed-issuer-acmesh`
+- `certbot`: plugin addons `acmed-issuer-certbot`
+- `both`: plugin addons `acmed-issuer-acmesh,acmed-issuer-certbot`
+- `none`: no external issuer addons
+
+When `acmed-issuer-acmesh` is selected, build-time addon install includes
+`acme.sh` and `dnsapi` hooks.
+
+Issuer backends are plugin-based:
+
+- `mock` is built into `acmed`
+- `acme_sh` and `certbot` are loaded from installed Python entry-point plugins
+  (`acmed.issuer_backends`) selected by `ACMED_PLUGIN_DIRS`
 
 To use issuer-enabled config:
 
@@ -99,6 +110,12 @@ cp docker/config/config.issuers.example.yml docker/config/config.yml
 
 This setup uses `development_mode: true` and `tls_enabled: false`, so it is for local testing only.
 The default issuer is `mock`, and runtime state is stored in `docker/data`.
+
+When building this Dockerfile from the monorepo app workspace, use build
+context `apps/acmed/sources` and keep `acmed` plus any selected plugin addon
+directories present:
+
+- `acmed`
 
 ## Pebble Chain Smoke Tests
 
@@ -158,7 +175,7 @@ and is also printed by the host wrapper from compose logs after each run.
 Reproducibility defaults and overrides:
 
 - Pebble image defaults to `ghcr.io/letsencrypt/pebble:latest` in `docker-compose.pebble-test.yml`.
-- `acme.sh` defaults to `v3.0.5` in Docker build args.
+- `acme.sh` defaults to `3.1.2` in Docker build args.
 - override Pebble image (including digest-pinned form) with `PEBBLE_IMAGE`, for example:
 
   ```bash
@@ -168,7 +185,7 @@ Reproducibility defaults and overrides:
 - override acme.sh reference with `ACMESH_REF` when needed:
 
   ```bash
-  ACMESH_REF='v3.0.5' ./docker/scripts/test-pebble-chain.sh
+  ACMESH_REF='3.1.2' ./docker/scripts/test-pebble-chain.sh
   ```
 
 Compose file and config used by this flow:

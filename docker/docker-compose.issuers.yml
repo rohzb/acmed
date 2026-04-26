@@ -1,6 +1,7 @@
 services:
   acmed:
     build:
-      target: ${ACMED_IMAGE_TARGET:-runtime-issuers}
+      target: ${ACMED_IMAGE_TARGET:-runtime}
       args:
-        ACMESH_REF: ${ACMESH_REF:-v3.0.5}
+        ACMESH_REF: ${ACMESH_REF:-3.1.2}
+        ACMED_PLUGIN_DIRS: ${ACMED_PLUGIN_DIRS:-acmed-issuer-acmesh,acmed-issuer-certbot}

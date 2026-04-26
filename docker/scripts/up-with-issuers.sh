@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Start acmed with optional issuer tooling image targets.
-# Usage: ./docker/scripts/up-with-issuers.sh [acmesh|certbot|both]
+# Start acmed with optional issuer addon combinations.
+# Usage: ./docker/scripts/up-with-issuers.sh [acmesh|certbot|both|none]
 # Author: Ruslan Ovsyannikov <rovsyannikov@gmail.com>
 # License: MIT
 
@@ -9,11 +9,12 @@ set -eu
 MODE="${1:-both}"
 
 case "$MODE" in
-  acmesh) ACMED_IMAGE_TARGET="runtime-acmesh" ;;
-  certbot) ACMED_IMAGE_TARGET="runtime-certbot" ;;
-  both) ACMED_IMAGE_TARGET="runtime-issuers" ;;
+  acmesh) ACMED_PLUGIN_DIRS="acmed-issuer-acmesh" ;;
+  certbot) ACMED_PLUGIN_DIRS="acmed-issuer-certbot" ;;
+  both) ACMED_PLUGIN_DIRS="acmed-issuer-acmesh,acmed-issuer-certbot" ;;
+  none) ACMED_PLUGIN_DIRS="" ;;
   *)
-    echo "usage: $0 [acmesh|certbot|both]" >&2
+    echo "usage: $0 [acmesh|certbot|both|none]" >&2
     exit 2
     ;;
 esac
@@ -53,7 +54,7 @@ fi
 "$DOCKER_DIR/scripts/generate-admin-token.sh"
 
 cd "$REPO_ROOT"
-ACMED_IMAGE_TARGET="$ACMED_IMAGE_TARGET" docker compose \
+ACMED_IMAGE_TARGET="runtime" ACMED_PLUGIN_DIRS="$ACMED_PLUGIN_DIRS" docker compose \
   -f docker/docker-compose.yml \
   -f docker/docker-compose.issuers.yml \
   --env-file docker/.env \

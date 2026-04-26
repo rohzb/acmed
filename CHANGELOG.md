@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.2.6] - 2026-04-26
+
+### Added
+- Added `docker/scripts/install-plugin-addons.sh` to install selected plugin
+  Python packages and plugin addon dependencies from `ACMED_PLUGIN_DIRS`.
+
+### Changed
+- Refactored `docker/Dockerfile` to a single runtime target that installs core
+  `acmed` plus selected plugin addons from a full source workspace copy.
+- Updated issuer-focused Docker compose profiles to use plugin addon selection
+  (`ACMED_PLUGIN_DIRS`) instead of legacy multi-target image variants.
+- Updated Docker docs and hardening notes to document the addon-driven runtime
+  model and acme.sh reference defaults (`3.1.2`).
+- Updated issuer Docker examples and helper scripts for addon mode, including
+  `docker-compose.issuers.yml`, `docker-compose.pebble-test.yml`, and
+  `docker/scripts/up-with-issuers.sh`.
+
 ## [0.2.2] - 2026-04-26
 
 ### Fixed

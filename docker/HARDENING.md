@@ -9,12 +9,9 @@ This guide describes the hardened local runtime layout under `docker/`.
 - `docker/data/orders/`: per-order artifact directory
 - `docker/secrets/acmed_token_admin`: admin API token secret (Docker secret source)
 
-The default image target is `runtime-base` (no issuer CLIs).
-Optional targets are available when explicitly requested:
-
-- `runtime-acmesh`
-- `runtime-certbot`
-- `runtime-issuers`
+The default image target is `runtime`.
+Optional issuer tools/extensions are added by setting `ACMED_PLUGIN_DIRS`
+during build.
 
 ## Bootstrap
 

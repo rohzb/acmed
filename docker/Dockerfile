@@ -1,7 +1,12 @@
-FROM python:3.12-slim AS runtime-base
+FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    HOME=/app/data/home
+
+ARG ACMED_SOURCE_DIR=acmed
+ARG ACMED_PLUGIN_DIRS=
+ARG ACMESH_REF=3.1.2
 
 # Run as a dedicated non-root user.
 RUN groupadd --system --gid 10001 acmed \
@@ -9,62 +14,26 @@ RUN groupadd --system --gid 10001 acmed \
 
 WORKDIR /app
 
-# Install acmed package from local source.
-COPY pyproject.toml /app/pyproject.toml
-COPY src /app/src
-RUN pip install --no-cache-dir .
+# Copy full source workspace so any plugin combination can be selected by build args.
+COPY . /tmp/sources
 
-# Runtime directories for SQLite and artifacts.
-RUN mkdir -p /app/data/orders /app/config \
+# Install core acmed package.
+RUN pip install --no-cache-dir "/tmp/sources/${ACMED_SOURCE_DIR}"
+
+COPY ${ACMED_SOURCE_DIR}/docker/entrypoint.sh /usr/local/bin/acmed-entrypoint
+COPY ${ACMED_SOURCE_DIR}/docker/scripts/install-plugin-addons.sh /usr/local/bin/acmed-install-plugin-addons
+RUN chmod 0555 /usr/local/bin/acmed-entrypoint /usr/local/bin/acmed-install-plugin-addons
+
+# Install selected plugin Python packages and their addon tooling/extensions.
+RUN /usr/local/bin/acmed-install-plugin-addons /tmp/sources "${ACMED_PLUGIN_DIRS}"
+
+# Runtime directories for SQLite, issuer state, and artifacts.
+RUN mkdir -p /app/data/orders /app/data/home /app/config \
+    && rm -rf /tmp/sources \
     && chown -R acmed:acmed /app /home/acmed
-
-COPY docker/entrypoint.sh /usr/local/bin/acmed-entrypoint
-RUN chmod 0555 /usr/local/bin/acmed-entrypoint
 
 USER acmed:acmed
 
 EXPOSE 8443
 
 ENTRYPOINT ["/usr/local/bin/acmed-entrypoint"]
-
-FROM runtime-base AS runtime-acmesh
-
-USER root
-
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends ca-certificates curl openssl socat \
-    && rm -rf /var/lib/apt/lists/*
-
-ARG ACMESH_REF=v3.0.5
-RUN curl --fail --show-error --silent --location \
-    "https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACMESH_REF}/acme.sh" \
-    --output /usr/local/bin/acme.sh \
-    && chmod 0555 /usr/local/bin/acme.sh
-
-USER acmed:acmed
-
-FROM runtime-base AS runtime-certbot
-
-USER root
-
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends certbot \
-    && rm -rf /var/lib/apt/lists/*
-
-USER acmed:acmed
-
-FROM runtime-base AS runtime-issuers
-
-USER root
-
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends ca-certificates certbot curl openssl socat \
-    && rm -rf /var/lib/apt/lists/*
-
-ARG ACMESH_REF=v3.0.5
-RUN curl --fail --show-error --silent --location \
-    "https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACMESH_REF}/acme.sh" \
-    --output /usr/local/bin/acme.sh \
-    && chmod 0555 /usr/local/bin/acme.sh
-
-USER acmed:acmed
