@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.2.1] - 2026-04-26
+
+### Added
+- Added explicit worker audit event `order.issuance_failed` with artifact path
+  metadata when issuer execution fails.
+
+### Changed
+- Improved worker failure reporting so runtime errors include concise issuer
+  stderr/stdout context and direct artifact log file paths.
+
 ## [0.2.0] - 2026-04-25
 
 ### Added

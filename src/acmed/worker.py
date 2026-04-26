@@ -205,7 +205,26 @@ class Worker:
         )
 
         if not result.success:
-            raise RuntimeError(f"issuer failed with exit code {result.exit_code}")
+            failure_summary = _summarize_issuer_failure(
+                exit_code=result.exit_code,
+                stdout=result.stdout,
+                stderr=result.stderr,
+            )
+            self._write_audit(
+                order.id,
+                "order.issuance_failed",
+                "worker",
+                self._worker_id,
+                failure_summary,
+                {
+                    "issuer": order.issuer_name,
+                    "stdout_path": str(stdout_path),
+                    "stderr_path": str(stderr_path),
+                },
+            )
+            raise RuntimeError(
+                f"{failure_summary}; stdout_log={stdout_path}; stderr_log={stderr_path}"
+            )
 
         if result.private_key_pem:
             self._storage.write_artifact(order.id, "private.key", result.private_key_pem, sensitive=True)
@@ -273,3 +292,20 @@ def _looks_like_ip(value: str) -> bool:
     """Heuristic check whether requester id resembles an IP address."""
 
     return "." in value or ":" in value
+
+
+def _summarize_issuer_failure(exit_code: int, stdout: str, stderr: str) -> str:
+    """Build a concise failure summary for logs, audit events, and API errors."""
+
+    detail = _last_nonempty_line(stderr) or _last_nonempty_line(stdout) or "no issuer output captured"
+    return f"issuer failed with exit code {exit_code}: {detail}"
+
+
+def _last_nonempty_line(value: str) -> str | None:
+    """Return the last non-empty line from captured command output."""
+
+    for line in reversed(value.splitlines()):
+        cleaned = line.strip()
+        if cleaned:
+            return cleaned
+    return None
