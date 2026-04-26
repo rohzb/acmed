@@ -62,6 +62,7 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
         issue_argv = [
             executable,
             "--issue",
+            "--force",
             "--server",
             profile.ca_directory_url or "",
             "--dns",

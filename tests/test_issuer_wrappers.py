@@ -48,6 +48,7 @@ def test_acme_sh_uses_dns_plugin_and_exports_expected_artifacts(monkeypatch, tmp
 
     issue_call = calls[0]
     assert "--challenge-alias" not in issue_call
+    assert "--force" in issue_call
     assert "--dns" in issue_call
     assert issue_call[issue_call.index("--dns") + 1] == "dns_hetzner"
 

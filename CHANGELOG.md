@@ -16,6 +16,13 @@ The format is inspired by Keep a Changelog and follows the repository policy in
   and emits an explicit `order.issuance_failed` audit event even when the
   backend raises unexpectedly.
 
+## [0.2.3] - 2026-04-26
+
+### Fixed
+- Updated the `acme_sh` issuer backend to invoke `acme.sh --issue --force`
+  so repeat requests for the same domain do not fail with exit code `2`
+  (`Add '--force' to force to renew.`).
+
 ## [0.1.7] - 2026-04-19
 
 ### Added
