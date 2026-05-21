@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.2.7] - 2026-05-21
+
+### Added
+- Added `Retry-After` headers on ACME order responses while orders are in
+  `processing` status so clients receive an explicit polling hint.
+- Added latest issuance-attempt metadata to admin order listings for faster
+  troubleshooting of slow or failed issuer runs.
+
+### Changed
+- Emit an `order.finalize_requested` audit event when ACME finalize is accepted.
+- Include `issuance_duration_seconds` in successful worker issuance audit
+  metadata.
+
 ## [0.2.7] - 2026-04-26
 
 ### Fixed
