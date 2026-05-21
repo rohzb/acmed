@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
-## [0.2.7] - 2026-05-21
+## [0.2.8] - 2026-05-21
 
 ### Added
 - Added `Retry-After` headers on ACME order responses while orders are in
