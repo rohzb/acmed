@@ -656,6 +656,29 @@ class Storage:
                 ),
             )
 
+    def get_latest_issuance_attempt(self, order_id: str) -> dict[str, Any] | None:
+        """Return the latest persisted issuance attempt for one order.
+
+        Args:
+            order_id: Order identifier.
+
+        Returns:
+            Latest issuance attempt mapping, or `None` when no attempt exists.
+        """
+        row = self._conn.execute(
+            """
+            SELECT
+              order_id, issuer_name, attempt_number, command, exit_code,
+              stdout_path, stderr_path, started_at, finished_at, result_code
+            FROM issuance_attempts
+            WHERE order_id = ?
+            ORDER BY attempt_number DESC, id DESC
+            LIMIT 1
+            """,
+            (order_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
     def write_audit_event(
         self,
         event_id: str,

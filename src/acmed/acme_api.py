@@ -21,6 +21,7 @@ from cryptography.x509 import ObjectIdentifier
 from cryptography.x509.oid import NameOID
 
 from .acme_jws import verify_external_account_binding
+from .audit import make_audit_event
 from .authorizers import AuthorizerInput, AuthorizerService
 from .config import AppConfig
 from .errors import AcmeProblemError, AuthorizationError, NotFoundError
@@ -293,7 +294,8 @@ class AcmeApiService:
         self._require_order_ownership(account_id, order_id)
         authzs = self._storage.list_acme_authorizations_for_order(order_id)
         auth_urls = [f"{base_url}/acme/authz/{item['id']}" for item in authzs]
-        return 200, self._order_object(order_id, auth_urls, base_url), {"Replay-Nonce": self._storage.create_nonce()}
+        body = self._order_object(order_id, auth_urls, base_url)
+        return 200, body, self._order_headers(body)
 
     def get_authorization(
         self,
@@ -436,13 +438,22 @@ class AcmeApiService:
             raise AcmeProblemError("orderNotReady", "order is not ready for finalize")
 
         self._storage.set_order_finalize_requested(order_id, enabled=True)
+        self._write_service_audit(
+            order_id=order_id,
+            event_type="order.finalize_requested",
+            message="finalize accepted; waiting for issuer completion",
+            metadata={
+                "request_source": "acme",
+                "poll_hint_seconds": max(1, int(self._config.workers.poll_interval_seconds)),
+            },
+        )
 
         body = self._order_object(
             order_id=order_id,
             auth_urls=[f"{base_url}/acme/authz/{item['id']}" for item in authzs],
             base_url=base_url,
         )
-        return 200, body, {"Replay-Nonce": self._storage.create_nonce()}
+        return 200, body, self._order_headers(body)
 
     def get_certificate(
         self,
@@ -563,6 +574,40 @@ class AcmeApiService:
             "Replay-Nonce": self._storage.create_nonce(),
             "Link": f'<{base_url}/acme/authz/{authorization_id}>;rel="up"',
         }
+
+    def _order_headers(self, order_body: dict[str, Any]) -> dict[str, str]:
+        """Build ACME order headers and include polling hints when processing."""
+        headers = {"Replay-Nonce": self._storage.create_nonce()}
+        if order_body.get("status") == "processing":
+            headers["Retry-After"] = str(max(1, int(self._config.workers.poll_interval_seconds)))
+        return headers
+
+    def _write_service_audit(
+        self,
+        order_id: str,
+        event_type: str,
+        message: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        """Persist one service-scoped audit event for ACME API actions."""
+        event = make_audit_event(
+            order_id=order_id,
+            event_type=event_type,
+            actor_type="service",
+            actor_id="acme_api",
+            message=message,
+            metadata=metadata,
+        )
+        self._storage.write_audit_event(
+            event_id=event.id,
+            order_id=event.order_id,
+            event_type=event.event_type,
+            actor_type=event.actor_type,
+            actor_id=event.actor_id,
+            message=event.message,
+            metadata=event.metadata,
+            created_at=event.created_at,
+        )
 
     def _is_trusted_challenge_bypass_enabled(self, order_id: str) -> bool:
         """Return whether order policy allows trusted challenge auto-validation."""

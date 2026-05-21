@@ -473,6 +473,7 @@ Expected response behavior:
 
 - return the updated order object
 - use `processing` when issuance is still underway
+- include `Retry-After` (seconds) when the returned order status is `processing` so clients can poll with backoff
 - allow the client to poll the order resource until it becomes `valid` or `invalid`
 - once finalize accepts a CSR, do not allow the order identifiers to change
 

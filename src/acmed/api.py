@@ -49,6 +49,15 @@ class ApiService:
         for key in ("not_before", "not_after", "claimed_at", "claim_expires_at", "created_at", "updated_at", "expires_at"):
             data[key] = utc_iso(data[key])
         data["dns_names"] = list(order.dns_names)
+        latest_attempt = self._storage.get_latest_issuance_attempt(order.id)
+        if latest_attempt is not None:
+            data["latest_issuance_attempt"] = {
+                **latest_attempt,
+                "started_at": latest_attempt.get("started_at"),
+                "finished_at": latest_attempt.get("finished_at"),
+            }
+        else:
+            data["latest_issuance_attempt"] = None
         return data
 
     @staticmethod

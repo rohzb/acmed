@@ -1,7 +1,8 @@
 from pathlib import Path
 import threading
+from datetime import timedelta
 
-from acmed.models import OrderRequest, PrivateKeyPolicy
+from acmed.models import OrderRequest, PrivateKeyPolicy, utc_now
 from acmed.storage import Storage
 
 
@@ -102,3 +103,55 @@ def test_storage_transactions_are_serialized_across_threads(tmp_path: Path):
     t2.join()
 
     assert errors == []
+
+
+def test_get_latest_issuance_attempt_returns_highest_attempt_number(tmp_path: Path):
+    storage = Storage(tmp_path / "acmed.db", tmp_path / "orders")
+    request = OrderRequest(
+        requester_id="acct-1",
+        requester_ip="127.0.0.1",
+        request_source="acme",
+        dns_names=["a.example.org"],
+        common_name="a.example.org",
+    )
+    order, created = storage.create_order(
+        request=request,
+        issuer_name="issuer-a",
+        proof_handler_name="no-proof",
+        challenge_validation_mode="strict",
+        private_key_policy=PrivateKeyPolicy.SERVICE_GENERATED,
+        max_retries=3,
+        ttl_seconds=3600,
+    )
+    assert created is True
+    now = utc_now()
+    storage.write_issuance_attempt(
+        order_id=order.id,
+        issuer_name="issuer-a",
+        attempt_number=1,
+        command="cmd1",
+        exit_code=1,
+        stdout_path="/tmp/out1",
+        stderr_path="/tmp/err1",
+        started_at=now,
+        finished_at=now + timedelta(seconds=1),
+        result_code="issuer_error",
+    )
+    storage.write_issuance_attempt(
+        order_id=order.id,
+        issuer_name="issuer-a",
+        attempt_number=2,
+        command="cmd2",
+        exit_code=0,
+        stdout_path="/tmp/out2",
+        stderr_path="/tmp/err2",
+        started_at=now + timedelta(seconds=2),
+        finished_at=now + timedelta(seconds=3),
+        result_code="issued",
+    )
+
+    latest = storage.get_latest_issuance_attempt(order.id)
+
+    assert latest is not None
+    assert latest["attempt_number"] == 2
+    assert latest["result_code"] == "issued"

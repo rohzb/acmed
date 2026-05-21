@@ -120,3 +120,20 @@ def test_acknowledge_challenge_trusted_bypass_sets_valid_without_validation():
     assert body["status"] == "valid"
     assert storage.status_updates == [("challenge-1", "valid")]
     assert headers["Link"] == '<https://acme.example.org/acme/authz/authz-1>;rel="up"'
+
+
+def test_order_headers_include_retry_after_while_processing():
+    service = object.__new__(AcmeApiService)
+
+    class _Storage:
+        @staticmethod
+        def create_nonce() -> str:
+            return "nonce-1"
+
+    service._storage = _Storage()  # type: ignore[attr-defined]
+    service._config = SimpleNamespace(workers=SimpleNamespace(poll_interval_seconds=2))  # type: ignore[attr-defined]
+
+    headers = service._order_headers({"status": "processing"})  # type: ignore[attr-defined]
+
+    assert headers["Replay-Nonce"] == "nonce-1"
+    assert headers["Retry-After"] == "2"

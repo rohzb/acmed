@@ -304,7 +304,11 @@ class Worker:
             "worker",
             self._worker_id,
             "issuance completed",
-            {"issuer": order.issuer_name, "finished_at": _iso(finished_at)},
+            {
+                "issuer": order.issuer_name,
+                "finished_at": _iso(finished_at),
+                "issuance_duration_seconds": round((finished_at - started_at).total_seconds(), 3),
+            },
         )
 
     def _classify_retry(self, exc: Exception) -> RetryDecision:
