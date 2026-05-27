@@ -3,8 +3,12 @@ services:
     build:
       context: ../..
       dockerfile: docker/Dockerfile
-      target: runtime-base
-    image: acmed:0.2.0
+      target: runtime
+      args:
+        ACMED_SOURCE_DIR: .
+        ACMED_PLUGIN_DIRS: acmed-issuer-acmesh
+        ACMESH_REF: ${ACMESH_REF:-3.1.2}
+    image: acmed:latest-local
     container_name: acmed
     restart: unless-stopped
     command: ["python", "-m", "acmed.main", "/app/config/config.yml"]
@@ -12,7 +16,7 @@ services:
       ACMED_TOKEN_ADMIN: ${ACMED_TOKEN_ADMIN:-acmed-admin-dev-token}
       ACMED_REMOTE_PLUGIN_TOKEN: ${ACMED_REMOTE_PLUGIN_TOKEN:-acmed-plugin-dev-token}
     volumes:
-      - ../config/config.remote.example.yml:/app/config/config.yml:ro
+      - ../config/config.issuers.example.yml:/app/config/config.yml:ro
       - ./runtime/core-data:/app/data
     ports:
       - "8443:8443"
@@ -25,7 +29,7 @@ services:
     build:
       context: ../../..
       dockerfile: acmed-issuer-acmesh/docker/Dockerfile
-    image: acmed-issuer-acmesh:0.2.0
+    image: acmed-issuer-acmesh:latest-local
     container_name: acmed-issuer-acmesh
     restart: unless-stopped
     environment:

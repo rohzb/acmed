@@ -23,8 +23,9 @@ Prebuilt-image mode:
 
 ## Config files
 
-- `deploy/config/config.remote.example.yml`: development-oriented remote-issuer config example
-- `deploy/config/config.yml`: local copy used by `*.image.yaml` files (create from example)
+- `deploy/config/config.issuers.example.yml`: local issuer example compatible with current core parser
+- `deploy/config/config.remote.example.yml`: remote-issuer sketch (not compatible with current core parser)
+- `deploy/config/config.yml`: local copy used by `*.image.yaml` files (create from compatible example)
 
 ## Quick start
 
@@ -41,7 +42,7 @@ Prebuilt-image full stack:
 
 ```bash
 cd deploy/compose
-cp ../config/config.remote.example.yml ../config/config.yml
+cp ../config/config.issuers.example.yml ../config/config.yml
 mkdir -p runtime/core-data
 
 ACMED_TOKEN_ADMIN='replace-me' \
