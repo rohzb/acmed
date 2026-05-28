@@ -7,6 +7,14 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-05-28
+
+### Fixed
+- acme.sh CSR-mode install flow no longer requests server-side private-key output and now rebuilds `fullchain.pem` from certificate+chain when needed.
+- certbot issuer now supports ACME finalize CSR-mode invocation (`--csr`) and avoids private-key path requirements for client-provided key flows.
+- Added regression tests for certbot CSR-mode wrapper behavior.
+
+
 ## [0.3.3] - 2026-05-28
 
 ### Fixed

@@ -6,7 +6,9 @@ This module contains implementation used by the acmed runtime and plugin surface
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import tempfile
 
 from ..config import IssuerProfile
 from .base import IssueRequest, IssueResult
@@ -70,22 +72,22 @@ class CertbotIssuerBackend(SubprocessIssuerMixin):
         chain_path = Path(request.artifacts_dir) / "chain.pem"
         fullchain_path = Path(request.artifacts_dir) / "fullchain.pem"
         key_path = Path(request.artifacts_dir) / "private.key"
-        argv.extend(
-            [
-                "--cert-path",
-                str(cert_path),
-                "--chain-path",
-                str(chain_path),
-                "--fullchain-path",
-                str(fullchain_path),
-                "--key-path",
-                str(key_path),
-            ]
-        )
+        argv.extend(["--cert-path", str(cert_path), "--chain-path", str(chain_path), "--fullchain-path", str(fullchain_path)])
+        csr_path: Path | None = None
+        if request.csr_pem is None:
+            argv.extend(["--key-path", str(key_path)])
+        else:
+            fd, raw_path = tempfile.mkstemp(prefix="acmed-", suffix=".csr", dir=request.artifacts_dir)
+            csr_path = Path(raw_path)
+            os.close(fd)
+            csr_path.write_text(request.csr_pem, encoding="utf-8")
+            argv.extend(["--csr", str(csr_path)])
         argv.append(f"--{profile.plugin_name}")
         for dns_name in request.dns_names:
             argv.extend(["-d", dns_name])
         result = self._issue_by_subprocess(argv=argv, profile=profile, request=request)
+        if csr_path is not None:
+            csr_path.unlink(missing_ok=True)
         if not result.success:
             return result
 

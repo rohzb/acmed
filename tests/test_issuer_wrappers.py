@@ -110,6 +110,52 @@ def test_certbot_sets_explicit_output_paths(monkeypatch, tmp_path):
     assert "--key-path" in argv
     assert argv[argv.index("--cert-path") + 1].endswith("/certificate.pem")
     assert argv[argv.index("--key-path") + 1].endswith("/private.key")
+    assert "--csr" not in argv
+
+
+def test_certbot_uses_csr_mode_without_key_path(monkeypatch, tmp_path):
+    backend = CertbotIssuerBackend()
+    captured = {}
+
+    def fake_issue_by_subprocess(argv, profile, request):  # noqa: ANN001
+        captured["argv"] = argv
+        return IssueResult(
+            success=True,
+            result_code="issued",
+            command=" ".join(argv),
+            exit_code=0,
+            stdout="ok",
+            stderr="",
+            certificate_pem="CERT",
+            chain_pem="CHAIN",
+            fullchain_pem="FULLCHAIN",
+            private_key_pem=None,
+        )
+
+    monkeypatch.setattr(backend, "_issue_by_subprocess", fake_issue_by_subprocess)
+
+    result = backend.issue(
+        profile=IssuerProfile(
+            name="certbot-dns",
+            type="certbot",
+            executable="/usr/bin/certbot",
+            ca_directory_url="https://acme-staging-v02.api.letsencrypt.org/directory",
+            challenge_mode="dns-01",
+            plugin_name="dns-route53",
+        ),
+        request=IssueRequest(
+            order_id="order-2-csr",
+            dns_names=["host1.example.org"],
+            common_name="host1.example.org",
+            csr_pem="-----BEGIN CERTIFICATE REQUEST-----\nMIIB\n-----END CERTIFICATE REQUEST-----\n",
+            artifacts_dir=str(tmp_path),
+        ),
+    )
+
+    assert result.success is True
+    argv = captured["argv"]
+    assert "--csr" in argv
+    assert "--key-path" not in argv
 
 
 def test_acme_sh_fails_fast_when_dns_plugin_missing(tmp_path):
