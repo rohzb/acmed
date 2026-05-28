@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import time
 import traceback
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -17,6 +18,8 @@ from .models import Order, OrderStatus, utc_now
 from .proofs import InventoryAssertionProofHandler, NoProofHandler, ProofInput
 from .policy import policy_matches_dns
 from .storage import Storage
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -244,6 +247,14 @@ class Worker:
                     "stderr_path": str(stderr_path),
                 },
             )
+            LOGGER.error(
+                "order issuance exception: order_id=%s issuer=%s summary=%s stdout_log=%s stderr_log=%s",
+                order.id,
+                order.issuer_name,
+                failure_summary,
+                stdout_path,
+                stderr_path,
+            )
             raise RuntimeError(
                 f"{failure_summary}; stdout_log={stdout_path}; stderr_log={stderr_path}"
             ) from exc
@@ -283,6 +294,14 @@ class Worker:
                     "stdout_path": str(stdout_path),
                     "stderr_path": str(stderr_path),
                 },
+            )
+            LOGGER.error(
+                "order issuance failed: order_id=%s issuer=%s summary=%s stdout_log=%s stderr_log=%s",
+                order.id,
+                order.issuer_name,
+                failure_summary,
+                stdout_path,
+                stderr_path,
             )
             raise RuntimeError(
                 f"{failure_summary}; stdout_log={stdout_path}; stderr_log={stderr_path}"

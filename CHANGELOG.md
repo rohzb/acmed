@@ -7,6 +7,11 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-28
+
+### Fixed
+- Added explicit worker error logs for issuer failures so container logs now include order ID, issuer name, failure summary, and artifact log paths (`stdout_log`, `stderr_log`) for faster operational debugging.
+
 ## [0.3.0] - 2026-05-28
 
 ### Changed
