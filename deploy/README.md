@@ -24,7 +24,7 @@ Prebuilt-image mode:
 ## Config files
 
 - `deploy/config/config.issuers.example.yml`: local issuer example compatible with current core parser
-- `deploy/config/config.remote.example.yml`: remote-issuer sketch (not compatible with current core parser)
+- `deploy/config/config.remote.example.yml`: compatibility example using the same current issuer schema (legacy `mode: remote` removed)
 - `deploy/config/config.yml`: local copy used by `*.image.yaml` files (create from compatible example)
 
 ## Quick start

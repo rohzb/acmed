@@ -6,7 +6,12 @@ This module contains implementation used by the acmed runtime and plugin surface
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import tempfile
+
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 
 from ..config import IssuerProfile
 from .base import IssueRequest, IssueResult
@@ -20,6 +25,25 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
     name: str = "acme_sh"
 
     _FORCE_RENEW_HINT: str = "Add '--force' to force to renew."
+
+    def _pem_pair_matches(self, certificate_pem: str | None, private_key_pem: str | None) -> bool:
+        """Return whether certificate and private key PEM payloads form a pair."""
+        if not certificate_pem or not private_key_pem:
+            return False
+        try:
+            cert = x509.load_pem_x509_certificate(certificate_pem.encode("utf-8"))
+            key = serialization.load_pem_private_key(private_key_pem.encode("utf-8"), password=None)
+        except Exception:
+            return False
+        cert_pub = cert.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        key_pub = key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        return cert_pub == key_pub
 
     def issue(self, profile: IssuerProfile, request: IssueRequest) -> IssueResult:
         """Run `acme.sh` using the configured issuer profile.
@@ -61,20 +85,31 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             )
 
         executable = profile.executable or "acme.sh"
+        use_signcsr = request.csr_pem is not None
         issue_argv = [
             executable,
-            "--issue",
+            "--signcsr" if use_signcsr else "--issue",
             "--server",
             profile.ca_directory_url or "",
             "--dns",
             profile.plugin_name,
         ]
+        csr_path: Path | None = None
+        if use_signcsr:
+            fd, raw_path = tempfile.mkstemp(prefix="acmed-", suffix=".csr", dir=request.artifacts_dir)
+            csr_path = Path(raw_path)
+            os.close(fd)
+            csr_path.write_text(request.csr_pem or "", encoding="utf-8")
+            issue_argv.extend(["--csr", str(csr_path)])
+        issue_argv.extend(["--keylength", "ec-256"])
         if profile.force_renew:
             issue_argv.append("--force")
         for dns_name in request.dns_names:
             issue_argv.extend(["-d", dns_name])
 
         issue_result = self._run(argv=issue_argv, profile=profile, cwd=request.artifacts_dir)
+        if csr_path is not None:
+            csr_path.unlink(missing_ok=True)
         can_reuse_existing = (not profile.force_renew) and self._is_existing_cert_reuse_hint(issue_result)
         if issue_result.exit_code != 0 and not can_reuse_existing:
             return IssueResult(
@@ -105,6 +140,7 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             "--fullchain-file",
             str(fullchain_path),
         ]
+        install_argv.append("--ecc")
         install_result = self._run(argv=install_argv, profile=profile, cwd=request.artifacts_dir)
 
         command = " && ".join([" ".join(issue_result.command), " ".join(install_result.command)])
@@ -130,6 +166,24 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
                 stdout=stdout,
                 stderr="\n".join(
                     part for part in [stderr, f"issuer output missing required artifacts: {', '.join(missing)}"] if part
+                ),
+                certificate_pem=cert,
+                chain_pem=chain,
+                fullchain_pem=fullchain,
+                private_key_pem=key,
+            )
+
+        if request.csr_pem is None and not self._pem_pair_matches(cert, key):
+            return IssueResult(
+                success=False,
+                result_code="issuer_error",
+                command=command,
+                exit_code=66,
+                stdout=stdout,
+                stderr="\n".join(
+                    part
+                    for part in [stderr, "acme.sh install output produced mismatched certificate/private key pair"]
+                    if part
                 ),
                 certificate_pem=cert,
                 chain_pem=chain,

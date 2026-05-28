@@ -1,9 +1,14 @@
+# Compatibility issuer config example for compose stacks.
+#
+# Despite the filename, this file now follows the same local issuer profile
+# schema as config.issuers.example.yml. The legacy remote issuer schema with
+# `mode: remote` is no longer supported by current acmed core.
+
 server:
   host: 0.0.0.0
   port: 8443
   tls_enabled: false
   development_mode: true
-  trust_forwarded_headers: false
 
 identity:
   api_tokens:
@@ -35,7 +40,7 @@ acme:
   directory_path: /acme/directory
   require_eab: false
   allow_wildcards: false
-  supported_challenge_types: [dns-01, http-01]
+  supported_challenge_types: [dns-01]
 
 storage:
   sqlite_path: /app/data/acmed.db
@@ -46,27 +51,22 @@ workers:
   max_parallel_orders: 4
 
 issuers:
-  - name: remote-acmesh
-    mode: remote
-    remote:
-      endpoint_url: http://issuer-acmesh:8081
-      timeout_seconds: 120
-      auth:
-        mode: token
-        token_secret_ref: ACMED_REMOTE_PLUGIN_TOKEN
-        token_secret_next_ref: ACMED_REMOTE_PLUGIN_TOKEN_NEXT
-        token_overlap_until_utc: 2026-05-01T00:00:00Z
+  - name: acmesh-dns
+    type: acme_sh
+    executable: /usr/local/bin/acme.sh
+    ca_directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
+    challenge_mode: dns-01
+    plugin_name: dns_cf
+    force_renew: false
+    credential_env: [CF_Token]
 
-  - name: remote-certbot
-    mode: remote
-    remote:
-      endpoint_url: http://issuer-certbot:8081
-      timeout_seconds: 120
-      auth:
-        mode: token
-        token_secret_ref: ACMED_REMOTE_PLUGIN_TOKEN
-        token_secret_next_ref: ACMED_REMOTE_PLUGIN_TOKEN_NEXT
-        token_overlap_until_utc: 2026-05-01T00:00:00Z
+  - name: certbot-dns
+    type: certbot
+    executable: /usr/bin/certbot
+    ca_directory_url: https://acme-staging-v02.api.letsencrypt.org/directory
+    challenge_mode: dns-01
+    plugin_name: dns-route53
+    credential_env: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]
 
 proof_handlers:
   - name: no-proof
@@ -84,7 +84,7 @@ policies:
     allowed_domains:
       - syntax: suffix
         value: .example.org
-    allowed_issuers: [remote-acmesh, remote-certbot]
+    allowed_issuers: [acmesh-dns, certbot-dns]
     proof_handler: no-proof
     csr_mode: either
     challenge_validation_mode: trusted_bypass

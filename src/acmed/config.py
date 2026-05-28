@@ -236,7 +236,24 @@ def _load_issuers(raw_issuers: list[dict[str, Any]], regex_enabled: bool) -> lis
     """Load and validate issuer profile configuration."""
     if not raw_issuers:
         raise ConfigError("at least one issuer profile is required")
-    issuers = [IssuerProfile(**raw) for raw in raw_issuers]
+    allowed_keys = {
+        "name",
+        "type",
+        "executable",
+        "ca_directory_url",
+        "challenge_mode",
+        "plugin_name",
+        "credential_env",
+        "capability_scope",
+        "timeout_seconds",
+        "force_renew",
+    }
+    issuers: list[IssuerProfile] = []
+    for raw in raw_issuers:
+        unknown = sorted(set(raw) - allowed_keys)
+        if unknown:
+            raise ConfigError(f"issuer contains unsupported keys: {unknown}")
+        issuers.append(IssuerProfile(**raw))
     names = [issuer.name for issuer in issuers]
     if len(set(names)) != len(names):
         raise ConfigError("duplicate issuer profile names are not allowed")

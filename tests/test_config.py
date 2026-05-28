@@ -166,3 +166,23 @@ def test_tls_enabled_requires_cert_and_key(tmp_path: Path, monkeypatch: pytest.M
     path.write_text(base, encoding="utf-8")
     with pytest.raises(ConfigError):
         load_config(path)
+
+
+def test_load_config_rejects_unknown_issuer_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    config_text = _base_config(tmp_path).replace(
+        "issuers:\n  - name: mock\n    type: mock\n",
+        (
+            "issuers:\n"
+            "  - name: acmesh-dns\n"
+            "    type: acme_sh\n"
+            "    executable: /bin/sh\n"
+            "    challenge_mode: dns-01\n"
+            "    plugin_name: dns_hetznercloud\n"
+            "    mode: legacy\n"
+        ),
+    ).replace("allowed_issuers: [mock]", "allowed_issuers: [acmesh-dns]")
+    path = tmp_path / "cfg.yml"
+    path.write_text(config_text, encoding="utf-8")
+    with pytest.raises(ConfigError, match="unsupported keys"):
+        load_config(path)

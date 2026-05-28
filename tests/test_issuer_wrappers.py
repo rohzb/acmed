@@ -21,6 +21,7 @@ def test_acme_sh_uses_dns_plugin_and_exports_expected_artifacts(monkeypatch, tmp
         return SubprocessResult(command=argv, exit_code=0, stdout="ok", stderr="")
 
     monkeypatch.setattr(backend, "_run", fake_run)
+    monkeypatch.setattr(backend, "_pem_pair_matches", lambda cert, key: True)
 
     result = backend.issue(
         profile=IssuerProfile(
@@ -51,12 +52,15 @@ def test_acme_sh_uses_dns_plugin_and_exports_expected_artifacts(monkeypatch, tmp
     assert "--force" not in issue_call
     assert "--dns" in issue_call
     assert issue_call[issue_call.index("--dns") + 1] == "dns_hetzner"
+    assert "--keylength" in issue_call
+    assert issue_call[issue_call.index("--keylength") + 1] == "ec-256"
 
     install_call = calls[1]
     assert "--cert-file" in install_call
     assert "--key-file" in install_call
     assert "--ca-file" in install_call
     assert "--fullchain-file" in install_call
+    assert "--ecc" in install_call
 
 
 def test_certbot_sets_explicit_output_paths(monkeypatch, tmp_path):
@@ -165,6 +169,7 @@ def test_acme_sh_marks_missing_required_artifacts_as_error(monkeypatch, tmp_path
         return SubprocessResult(command=argv, exit_code=0, stdout="ok", stderr="")
 
     monkeypatch.setattr(backend, "_run", fake_run)
+    monkeypatch.setattr(backend, "_pem_pair_matches", lambda cert, key: True)
 
     result = backend.issue(
         profile=IssuerProfile(
@@ -208,6 +213,7 @@ def test_acme_sh_reuses_existing_cert_without_forced_renew(monkeypatch, tmp_path
         return SubprocessResult(command=argv, exit_code=0, stdout="installed", stderr="")
 
     monkeypatch.setattr(backend, "_run", fake_run)
+    monkeypatch.setattr(backend, "_pem_pair_matches", lambda cert, key: True)
 
     result = backend.issue(
         profile=IssuerProfile(
@@ -245,6 +251,7 @@ def test_acme_sh_force_renew_adds_force_flag(monkeypatch, tmp_path):
         return SubprocessResult(command=argv, exit_code=0, stdout="ok", stderr="")
 
     monkeypatch.setattr(backend, "_run", fake_run)
+    monkeypatch.setattr(backend, "_pem_pair_matches", lambda cert, key: True)
 
     result = backend.issue(
         profile=IssuerProfile(
@@ -266,6 +273,46 @@ def test_acme_sh_force_renew_adds_force_flag(monkeypatch, tmp_path):
 
     assert result.success is True
     assert "--force" in calls[0]
+    assert "--keylength" in calls[0]
+    assert "--ecc" in calls[1]
+
+
+def test_acme_sh_uses_signcsr_when_csr_provided(monkeypatch, tmp_path):
+    backend = AcmeShIssuerBackend()
+    calls = []
+
+    def fake_run(argv, profile, cwd):  # noqa: ANN001
+        calls.append(argv)
+        if "--install-cert" in argv:
+            (tmp_path / "certificate.pem").write_text("CERT", encoding="utf-8")
+            (tmp_path / "chain.pem").write_text("CHAIN", encoding="utf-8")
+            (tmp_path / "fullchain.pem").write_text("FULLCHAIN", encoding="utf-8")
+        return SubprocessResult(command=argv, exit_code=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(backend, "_run", fake_run)
+
+    result = backend.issue(
+        profile=IssuerProfile(
+            name="acmesh-dns",
+            type="acme_sh",
+            executable="/usr/local/bin/acme.sh",
+            challenge_mode="dns-01",
+            plugin_name="dns_hetznercloud",
+        ),
+        request=IssueRequest(
+            order_id="order-csr-1",
+            dns_names=["testme.amgro.de"],
+            common_name="testme.amgro.de",
+            csr_pem="-----BEGIN CERTIFICATE REQUEST-----\nMIIB\n-----END CERTIFICATE REQUEST-----\n",
+            artifacts_dir=str(tmp_path),
+        ),
+    )
+
+    assert result.success is True
+    assert "--signcsr" in calls[0]
+    assert "--csr" in calls[0]
+    assert "--issue" not in calls[0]
+    assert result.private_key_pem is None
 
 
 def test_certbot_marks_missing_required_artifacts_as_error(monkeypatch, tmp_path):
