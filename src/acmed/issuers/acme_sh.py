@@ -140,13 +140,18 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             primary_domain,
             "--cert-file",
             str(cert_path),
-            "--key-file",
-            str(key_path),
             "--ca-file",
             str(chain_path),
             "--fullchain-file",
             str(fullchain_path),
         ]
+        if request.csr_pem is None:
+            install_argv.extend(
+                [
+                    "--key-file",
+                    str(key_path),
+                ]
+            )
         install_argv.append("--ecc")
         install_result = self._run(argv=install_argv, profile=profile, cwd=request.artifacts_dir)
 
@@ -157,6 +162,10 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
         chain = self._read_if_exists(chain_path)
         fullchain = self._read_if_exists(fullchain_path)
         key = self._read_if_exists(key_path)
+        if fullchain is None and cert is not None:
+            # Some acme.sh runs emit cert+chain but skip fullchain file.
+            fullchain = f"{cert}{chain or ''}"
+            fullchain_path.write_text(fullchain, encoding="utf-8")
         missing = []
         if cert is None:
             missing.append("certificate.pem")
