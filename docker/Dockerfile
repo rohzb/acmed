@@ -27,7 +27,7 @@ RUN chmod 0555 /usr/local/bin/acmed-entrypoint /usr/local/bin/acmed-install-issu
 RUN /usr/local/bin/acmed-install-issuer-tools "${ACMESH_REF}"
 
 # Runtime directories for SQLite, issuer state, and artifacts.
-RUN mkdir -p /app/data/orders /app/data/home /app/data/acmesh /app/config \
+RUN mkdir -p /app/data/orders /app/data/home /app/data/acmesh /app/config /opt/acmed \
     && rm -rf /tmp/acmed-source \
     && chown -R acmed:acmed /app /home/acmed /opt/acmed
 
