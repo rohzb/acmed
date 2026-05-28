@@ -10,8 +10,3 @@ services:
       - ./runtime/core-data:/app/data
     ports:
       - "8443:8443"
-    networks: [acmed_internal]
-
-networks:
-  acmed_internal:
-    driver: bridge
