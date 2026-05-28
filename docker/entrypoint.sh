@@ -7,6 +7,15 @@
 set -eu
 
 TOKEN_FILE="${ACMED_TOKEN_ADMIN_FILE:-/run/secrets/acmed_token_admin}"
+ACMESH_HOME="${ACMED_ACMESH_HOME:-/app/data/acmesh}"
+ACMESH_DNSAPI_DIR="${ACMED_ACMESH_DNSAPI_DIR:-/opt/acmed/acme.sh/dnsapi}"
+
+# Ensure acme.sh runtime home has dnsapi hooks available at a deterministic
+# location even when /app/data is a fresh external bind mount.
+if [ -d "$ACMESH_DNSAPI_DIR" ]; then
+  mkdir -p "${ACMESH_HOME}/dnsapi"
+  cp -a "${ACMESH_DNSAPI_DIR}/." "${ACMESH_HOME}/dnsapi/"
+fi
 
 if [ -z "${ACMED_TOKEN_ADMIN:-}" ]; then
   if [ ! -r "$TOKEN_FILE" ]; then

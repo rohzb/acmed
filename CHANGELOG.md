@@ -7,6 +7,13 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-28
+
+### Fixed
+- Refactored acme.sh runtime/install paths to deterministic ACMED-owned locations to avoid DNS hook discovery failures (`dns_hetznercloud` and similar).
+- acme.sh wrapper now passes explicit `--home` (`ACMED_ACMESH_HOME`) for issuance/install flows instead of relying on process `HOME`.
+- Docker image now ships bundled hooks at `/opt/acmed/acme.sh/dnsapi`, and entrypoint syncs them into runtime acme.sh home so fresh bind mounts still have DNS hooks available.
+
 ## [0.3.1] - 2026-05-28
 
 ### Fixed

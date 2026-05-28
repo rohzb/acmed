@@ -2,7 +2,9 @@ FROM python:3.12-slim AS runtime-base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    HOME=/app/data/home
+    HOME=/app/data/home \
+    ACMED_ACMESH_HOME=/app/data/acmesh \
+    ACMED_ACMESH_DNSAPI_DIR=/opt/acmed/acme.sh/dnsapi
 
 ARG ACMED_SOURCE_DIR=.
 ARG ACMESH_REF=3.1.2
@@ -25,9 +27,9 @@ RUN chmod 0555 /usr/local/bin/acmed-entrypoint /usr/local/bin/acmed-install-issu
 RUN /usr/local/bin/acmed-install-issuer-tools "${ACMESH_REF}"
 
 # Runtime directories for SQLite, issuer state, and artifacts.
-RUN mkdir -p /app/data/orders /app/data/home /app/config \
+RUN mkdir -p /app/data/orders /app/data/home /app/data/acmesh /app/config \
     && rm -rf /tmp/acmed-source \
-    && chown -R acmed:acmed /app /home/acmed
+    && chown -R acmed:acmed /app /home/acmed /opt/acmed
 
 USER acmed:acmed
 

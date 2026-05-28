@@ -65,6 +65,18 @@ if ! curl --fail --show-error --silent --location \
 fi
 
 tar -xzf "${tmp_dir}/acme.sh.tar.gz" -C "${tmp_dir}"
+
+# Install dnsapi hooks both in a shared location and acme.sh default HOME paths.
 mkdir -p /usr/local/share/acme.sh
 cp -a "${tmp_dir}"/acme.sh-*/dnsapi /usr/local/share/acme.sh/dnsapi
+
+for home_base in /app/data/home /home/acmed; do
+  mkdir -p "${home_base}/.acme.sh"
+  rm -rf "${home_base}/.acme.sh/dnsapi"
+  cp -a /usr/local/share/acme.sh/dnsapi "${home_base}/.acme.sh/dnsapi"
+done
+
+# Runtime user in Dockerfile is uid/gid 10001.
+chown -R 10001:10001 /app/data/home /home/acmed
+
 rm -rf "${tmp_dir}"

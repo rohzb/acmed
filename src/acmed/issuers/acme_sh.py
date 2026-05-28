@@ -25,6 +25,7 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
     name: str = "acme_sh"
 
     _FORCE_RENEW_HINT: str = "Add '--force' to force to renew."
+    _DEFAULT_ACMESH_HOME: str = "/app/data/acmesh"
 
     def _pem_pair_matches(self, certificate_pem: str | None, private_key_pem: str | None) -> bool:
         """Return whether certificate and private key PEM payloads form a pair."""
@@ -85,10 +86,13 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             )
 
         executable = profile.executable or "acme.sh"
+        acmesh_home = os.environ.get("ACMED_ACMESH_HOME", self._DEFAULT_ACMESH_HOME)
         use_signcsr = request.csr_pem is not None
         issue_argv = [
             executable,
             "--signcsr" if use_signcsr else "--issue",
+            "--home",
+            acmesh_home,
             "--server",
             profile.ca_directory_url or "",
             "--dns",
@@ -130,6 +134,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
         install_argv = [
             executable,
             "--install-cert",
+            "--home",
+            acmesh_home,
             "-d",
             primary_domain,
             "--cert-file",

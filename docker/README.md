@@ -85,6 +85,15 @@ The standard `acmed` image includes:
 - certbot DNS plugins for common providers (`cloudflare`, `route53`,
   `digitalocean`, `google`, `linode`, `ovh`, `rfc2136`, and others)
 
+acme.sh runtime/install paths are fixed and deterministic:
+
+- binary: `/usr/local/bin/acme.sh`
+- bundled DNS hooks (image): `/opt/acmed/acme.sh/dnsapi`
+- runtime acme.sh home: `/app/data/acmesh`
+
+Container entrypoint syncs bundled hooks into `/app/data/acmesh/dnsapi` on
+startup so DNS plugins are available even on fresh bind-mounted data volumes.
+
 To use issuer-enabled config:
 
 ```bash
