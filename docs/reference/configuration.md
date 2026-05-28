@@ -74,9 +74,6 @@ issuers:
     force_renew: false
     credential_env:
       - CF_Token
-    capability_scope:
-      - syntax: suffix
-        value: .lab.example.org
 
   - name: le-certbot-dns
     type: certbot
@@ -87,9 +84,6 @@ issuers:
     credential_env:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
-    capability_scope:
-      - syntax: suffix
-        value: .example.org
 
   - name: mock
     type: mock
@@ -224,7 +218,6 @@ Each issuer profile should declare:
 - the external plugin name when one is required
 - optional `force_renew` (`true|false`) for `acme_sh` backends
 - the credential environment variables needed by that issuer
-- the broad capability scope that the issuer can technically validate
 
 Issuer-profile rules:
 
@@ -232,15 +225,8 @@ Issuer-profile rules:
 - keep executable paths explicit
 - keep `force_renew` disabled by default unless forced reissuance is explicitly required
 - keep credential sources outside YAML secret literals
-- record capability scope so operators can review the real blast radius of each issuer profile
 - reject startup if an issuer profile references an unsupported adapter type or missing executable path
 - reject startup if two issuer profiles share the same name
-
-Capability-scope meaning:
-
-- `capability_scope` describes what the issuer could technically validate with its configured credentials
-- policy still decides what a requester may actually request through that issuer
-- requester authorization must always be narrower than or equal to the selected policy, even when issuer capability is much broader
 
 ## 3. Policy Matcher Syntax
 
@@ -398,7 +384,6 @@ The central safety property is that issuer capability is not requester permissio
 Required rules:
 
 - a broad DNS-capable issuer profile may exist even when most requesters may use only a narrow subset of names
-- do not infer requester permission from the issuer profile's `capability_scope`
 - do not expose issuer plugin details or issuer credentials in requester-facing APIs
 - keep policy review focused on the pair of `allowed_domains` and `allowed_issuers`
 - treat `no-proof` as a high-trust path that must be explicit and auditable

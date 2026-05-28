@@ -10,8 +10,7 @@ This guide describes the hardened local runtime layout under `docker/`.
 - `docker/secrets/acmed_token_admin`: admin API token secret (Docker secret source)
 
 The default image target is `runtime`.
-Optional issuer tools/extensions are added by setting `ACMED_PLUGIN_DIRS`
-during build.
+Issuer tools are included directly in the standard image build.
 
 ## Bootstrap
 
@@ -35,12 +34,6 @@ cp docker/.env.example docker/.env
 ./docker/scripts/setup-host-paths.sh
 ./docker/scripts/generate-admin-token.sh
 docker compose -f docker/docker-compose.yml --env-file docker/.env up -d --build
-```
-
-For issuer-enabled images:
-
-```bash
-./docker/scripts/up-with-issuers.sh both
 ```
 
 ## Token Rotation

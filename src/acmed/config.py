@@ -107,7 +107,6 @@ class IssuerProfile:
     challenge_mode: str | None = None
     plugin_name: str | None = None
     credential_env: list[str] | None = None
-    capability_scope: list[AllowedDomainEntry] | None = None
     timeout_seconds: int = 120
     force_renew: bool = False
 
@@ -244,7 +243,6 @@ def _load_issuers(raw_issuers: list[dict[str, Any]], regex_enabled: bool) -> lis
         "challenge_mode",
         "plugin_name",
         "credential_env",
-        "capability_scope",
         "timeout_seconds",
         "force_renew",
     }
@@ -267,11 +265,6 @@ def _load_issuers(raw_issuers: list[dict[str, Any]], regex_enabled: bool) -> lis
             raise ConfigError(f"issuer {issuer.name} requires executable")
         if issuer.executable and not Path(issuer.executable).exists():
             raise ConfigError(f"issuer executable not found: {issuer.executable}")
-        if issuer.capability_scope:
-            issuer.capability_scope = _load_matchers(
-                [entry.__dict__ if isinstance(entry, AllowedDomainEntry) else entry for entry in issuer.capability_scope],
-                regex_enabled=regex_enabled,
-            )
     return issuers
 
 

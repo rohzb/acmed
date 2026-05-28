@@ -75,45 +75,28 @@ Run these commands from the repository root (for example after `git clone https:
    curl -s http://127.0.0.1:8443/acme/directory
    ```
 
-## Optional Issuer Tooling Images
+## Issuer Tooling In The Standard Image
 
-The default image includes only core `acmed`.
-Issuer CLIs and extensions are added through selected plugin addons.
-When issuer tooling is needed, start with:
+The standard `acmed` image includes:
 
-```bash
-./docker/scripts/up-with-issuers.sh both
-```
-
-Valid modes:
-
-- `acmesh`: plugin addons `acmed-issuer-acmesh`
-- `certbot`: plugin addons `acmed-issuer-certbot`
-- `both`: plugin addons `acmed-issuer-acmesh,acmed-issuer-certbot`
-- `none`: no external issuer addons
-
-When `acmed-issuer-acmesh` is selected, build-time addon install includes
-`acme.sh` and `dnsapi` hooks.
-
-Issuer backends are plugin-based:
-
-- `mock` is built into `acmed`
-- `acme_sh` and `certbot` are loaded from installed Python entry-point plugins
-  (`acmed.issuer_backends`) selected by `ACMED_PLUGIN_DIRS`
+- `acmed`
+- `acme.sh` + bundled `dnsapi` hooks
+- `certbot`
+- certbot DNS plugins for common providers (`cloudflare`, `route53`,
+  `digitalocean`, `google`, `linode`, `ovh`, `rfc2136`, and others)
 
 To use issuer-enabled config:
 
 ```bash
 cp docker/config/config.issuers.example.yml docker/config/config.yml
-./docker/scripts/up-with-issuers.sh both
+./docker/scripts/up.sh
 ```
 
 This setup uses `development_mode: true` and `tls_enabled: false`, so it is for local testing only.
 The default issuer is `mock`, and runtime state is stored in `docker/data`.
 
 When building this Dockerfile from the monorepo app workspace, use build
-context `apps/acmed/sources` and keep `acmed` plus any selected plugin addon
-directories present:
+context `apps/acmed/sources` and keep `acmed` present:
 
 - `acmed`
 
@@ -221,4 +204,3 @@ The compose service applies baseline hardening for local development:
 - `docker/scripts/setup-host-paths.sh`: create `docker/data` and `docker/secrets` with hardened modes and correct owner.
 - `docker/scripts/generate-admin-token.sh`: generate or rotate `docker/secrets/acmed_token_admin`.
 - `docker/scripts/up.sh`: one-shot bootstrap and `docker compose up -d --build`.
-- `docker/scripts/up-with-issuers.sh`: bootstrap and start with optional issuer-enabled image targets.

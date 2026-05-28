@@ -5,7 +5,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOME=/app/data/home
 
 ARG ACMED_SOURCE_DIR=.
-ARG ACMED_PLUGIN_DIRS=
 ARG ACMESH_REF=3.1.2
 
 # Run as a dedicated non-root user.
@@ -14,22 +13,20 @@ RUN groupadd --system --gid 10001 acmed \
 
 WORKDIR /app
 
-# Copy full source workspace so any plugin combination can be selected by build args.
-COPY . /tmp/sources
-
-# Install core acmed package.
-RUN pip install --no-cache-dir "/tmp/sources/${ACMED_SOURCE_DIR}"
+# Install core acmed package from the selected source directory.
+COPY ${ACMED_SOURCE_DIR} /tmp/acmed-source
+RUN pip install --no-cache-dir /tmp/acmed-source
 
 COPY ${ACMED_SOURCE_DIR}/docker/entrypoint.sh /usr/local/bin/acmed-entrypoint
-COPY ${ACMED_SOURCE_DIR}/docker/scripts/install-plugin-addons.sh /usr/local/bin/acmed-install-plugin-addons
-RUN chmod 0555 /usr/local/bin/acmed-entrypoint /usr/local/bin/acmed-install-plugin-addons
+COPY ${ACMED_SOURCE_DIR}/docker/scripts/install-issuer-tools.sh /usr/local/bin/acmed-install-issuer-tools
+RUN chmod 0555 /usr/local/bin/acmed-entrypoint /usr/local/bin/acmed-install-issuer-tools
 
-# Install selected plugin Python packages and their addon tooling/extensions.
-RUN /usr/local/bin/acmed-install-plugin-addons /tmp/sources "${ACMED_PLUGIN_DIRS}"
+# Install issuer CLIs directly into the core runtime image.
+RUN /usr/local/bin/acmed-install-issuer-tools "${ACMESH_REF}"
 
 # Runtime directories for SQLite, issuer state, and artifacts.
 RUN mkdir -p /app/data/orders /app/data/home /app/config \
-    && rm -rf /tmp/sources \
+    && rm -rf /tmp/acmed-source \
     && chown -R acmed:acmed /app /home/acmed
 
 USER acmed:acmed
@@ -38,6 +35,5 @@ EXPOSE 8443
 
 ENTRYPOINT ["/usr/local/bin/acmed-entrypoint"]
 
-# Compatibility alias: keep `runtime` available for newer compose presets while
-# preserving legacy `runtime-base` CI/build targets.
+# Compatibility alias: keep `runtime` available for existing compose presets.
 FROM runtime-base AS runtime

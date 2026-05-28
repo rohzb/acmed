@@ -311,6 +311,7 @@ def test_acme_sh_uses_signcsr_when_csr_provided(monkeypatch, tmp_path):
     assert result.success is True
     assert "--signcsr" in calls[0]
     assert "--csr" in calls[0]
+    assert "--keylength" not in calls[0]
     assert "--issue" not in calls[0]
     assert result.private_key_pem is None
 

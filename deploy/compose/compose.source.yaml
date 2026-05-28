@@ -6,7 +6,6 @@ services:
       target: runtime
       args:
         ACMED_SOURCE_DIR: .
-        ACMED_PLUGIN_DIRS: acmed-issuer-certbot
         ACMESH_REF: ${ACMESH_REF:-3.1.2}
     image: acmed:latest-local
     container_name: acmed
@@ -14,26 +13,11 @@ services:
     command: ["python", "-m", "acmed.main", "/app/config/config.yml"]
     environment:
       ACMED_TOKEN_ADMIN: ${ACMED_TOKEN_ADMIN:-acmed-admin-dev-token}
-      ACMED_REMOTE_PLUGIN_TOKEN: ${ACMED_REMOTE_PLUGIN_TOKEN:-acmed-plugin-dev-token}
     volumes:
       - ../config/config.issuers.example.yml:/app/config/config.yml:ro
       - ./runtime/core-data:/app/data
     ports:
       - "8443:8443"
-    depends_on:
-      issuer-certbot:
-        condition: service_started
-    networks: [acmed_internal]
-
-  issuer-certbot:
-    build:
-      context: ../../..
-      dockerfile: acmed-issuer-certbot/docker/Dockerfile
-    image: acmed-issuer-certbot:latest-local
-    container_name: acmed-issuer-certbot
-    restart: unless-stopped
-    environment:
-      ACMED_REMOTE_PLUGIN_TOKEN: ${ACMED_REMOTE_PLUGIN_TOKEN:-acmed-plugin-dev-token}
     networks: [acmed_internal]
 
 networks:

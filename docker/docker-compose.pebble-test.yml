@@ -15,8 +15,6 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: runtime
-      args:
-        ACMED_PLUGIN_DIRS: acmed-issuer-acmesh,acmed-issuer-certbot
     restart: unless-stopped
     init: true
     environment:

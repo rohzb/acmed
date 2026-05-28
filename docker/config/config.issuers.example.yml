@@ -1,9 +1,7 @@
 # Docker issuer-enabled runtime example (acme.sh + certbot).
 #
-# Use this with docker/docker-compose.issuers.yml and choose addons via:
-# - ACMED_PLUGIN_DIRS=acmed-issuer-acmesh
-# - ACMED_PLUGIN_DIRS=acmed-issuer-certbot
-# - ACMED_PLUGIN_DIRS=acmed-issuer-acmesh,acmed-issuer-certbot
+# Use this with docker/docker-compose.yml. The standard acmed image already
+# includes acme.sh + certbot + DNS plugin tooling.
 
 server:
   host: 0.0.0.0

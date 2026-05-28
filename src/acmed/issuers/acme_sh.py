@@ -101,7 +101,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             os.close(fd)
             csr_path.write_text(request.csr_pem or "", encoding="utf-8")
             issue_argv.extend(["--csr", str(csr_path)])
-        issue_argv.extend(["--keylength", "ec-256"])
+        if not use_signcsr:
+            issue_argv.extend(["--keylength", "ec-256"])
         if profile.force_renew:
             issue_argv.append("--force")
         for dns_name in request.dns_names:

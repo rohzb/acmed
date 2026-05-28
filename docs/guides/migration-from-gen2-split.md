@@ -15,12 +15,13 @@ This note documents the breaking consolidation where `acmed` + `acmed-deploy` wr
 
 ## Compose mode changes
 
-The old split between wrapper directories is now encoded in filenames:
+The deploy layout now keeps one preset per build mode:
 
-- source-build mode: `compose.*.source.yaml`
-- prebuilt-image mode: `compose.*.image.yaml`
+- source-build mode: `deploy/compose/compose.source.yaml`
+- prebuilt-image mode: `deploy/compose/compose.image.yaml`
 
 ## Notes
 
 - ACME HTTP API behavior is unchanged by this migration.
-- Plugin repositories (`acmed-issuer-*`, plugin SDK/base image) remain separate.
+- Core `acmed` runtime now installs `acme.sh` and `certbot` directly; no
+  remote issuer sidecar compose stack is required.

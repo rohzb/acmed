@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [Unreleased]
+
+### Changed
+- Simplified Docker runtime to a single standard image that installs `acmed`,
+  `acme.sh`, `certbot`, and certbot DNS plugins directly (no plugin addon
+  selection through `ACMED_PLUGIN_DIRS`).
+- Removed addon-specific Docker helper files:
+  `docker/scripts/install-plugin-addons.sh`,
+  `docker/scripts/up-with-issuers.sh`, and
+  `docker/docker-compose.issuers.yml`.
+- Simplified deployment compose presets to one source-build preset
+  (`deploy/compose/compose.source.yaml`) and one prebuilt-image preset
+  (`deploy/compose/compose.image.yaml`).
+- Updated Docker/deploy docs and issuer config examples to match the direct
+  wrapper runtime model.
+- Removed unused issuer `capability_scope` configuration field and related
+  parser/docs references.
+- Removed stale deploy compatibility config
+  (`deploy/config/config.remote.example.yml`).
+
 ## [0.2.9] - 2026-05-27
 
 ### Fixed
