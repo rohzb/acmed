@@ -13,20 +13,39 @@ apt-get install --yes --no-install-recommends \
   ca-certificates \
   curl \
   tar \
-  certbot \
-  python3-certbot-dns-cloudflare \
-  python3-certbot-dns-digitalocean \
-  python3-certbot-dns-dnsimple \
-  python3-certbot-dns-dnsmadeeasy \
-  python3-certbot-dns-gehirn \
-  python3-certbot-dns-google \
-  python3-certbot-dns-linode \
-  python3-certbot-dns-luadns \
-  python3-certbot-dns-nsone \
-  python3-certbot-dns-ovh \
-  python3-certbot-dns-rfc2136 \
-  python3-certbot-dns-route53 \
-  python3-certbot-dns-sakuracloud
+  certbot
+
+# Some certbot DNS plugin packages are distro-specific and may be absent on
+# slim base images. Install only plugins that exist in the current apt index.
+CERTBOT_DNS_CANDIDATES="
+python3-certbot-dns-cloudflare
+python3-certbot-dns-digitalocean
+python3-certbot-dns-dnsimple
+python3-certbot-dns-dnsmadeeasy
+python3-certbot-dns-gehirn
+python3-certbot-dns-google
+python3-certbot-dns-linode
+python3-certbot-dns-luadns
+python3-certbot-dns-nsone
+python3-certbot-dns-ovh
+python3-certbot-dns-rfc2136
+python3-certbot-dns-route53
+python3-certbot-dns-sakuracloud
+"
+
+available_plugins=""
+for pkg in ${CERTBOT_DNS_CANDIDATES}; do
+  if apt-cache show "$pkg" >/dev/null 2>&1; then
+    available_plugins="${available_plugins} ${pkg}"
+  fi
+done
+
+if [ -n "${available_plugins# }" ]; then
+  # Intentional word splitting: apt-get expects package names as separate args.
+  # shellcheck disable=SC2086
+  apt-get install --yes --no-install-recommends ${available_plugins}
+fi
+
 rm -rf /var/lib/apt/lists/*
 
 curl --fail --show-error --silent --location \
