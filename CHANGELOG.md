@@ -7,6 +7,12 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-05-28
+
+### Fixed
+- ACME finalize flow now persists the validated client CSR (`request.csr`) and worker issuance passes it through to issuer backends.
+- Prevented certificate/private-key mismatch by using `acme.sh --signcsr` for finalized ACME orders instead of generating a new server-side keypair.
+
 ## [0.3.2] - 2026-05-28
 
 ### Fixed

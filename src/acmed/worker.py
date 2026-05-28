@@ -186,6 +186,8 @@ class Worker:
             raise RuntimeError(f"issuer backend not registered: {issuer_profile.type}")
 
         artifact_dir = self._storage.create_artifact_dir(order.id)
+        csr_path = artifact_dir / "request.csr"
+        csr_pem = csr_path.read_text(encoding="utf-8") if csr_path.exists() else None
         started_at = utc_now()
         try:
             result = issuer.issue(
@@ -194,7 +196,7 @@ class Worker:
                     order_id=order.id,
                     dns_names=order.dns_names,
                     common_name=order.common_name,
-                    csr_pem=None,
+                    csr_pem=csr_pem,
                     artifacts_dir=str(artifact_dir),
                 ),
             )

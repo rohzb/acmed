@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import ObjectIdentifier
 from cryptography.x509.oid import NameOID
 
@@ -436,6 +437,11 @@ class AcmeApiService:
         authzs = self._storage.list_acme_authorizations_for_order(order_id)
         if not authzs or any(item["status"] != "valid" for item in authzs):
             raise AcmeProblemError("orderNotReady", "order is not ready for finalize")
+
+        # Persist the finalized CSR so worker issuance uses client-provided key
+        # material rather than generating a new keypair server-side.
+        csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM).decode("utf-8")
+        self._storage.write_artifact(order_id, "request.csr", csr_pem, sensitive=False)
 
         self._storage.set_order_finalize_requested(order_id, enabled=True)
         self._write_service_audit(
