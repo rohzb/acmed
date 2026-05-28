@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is inspired by Keep a Changelog and follows the repository policy in
 `docs/reference/versioning.md`.
 
+## [0.2.9] - 2026-05-27
+
+### Fixed
+- Corrected source deployment compose presets to build the core image with
+  profile-appropriate `ACMED_PLUGIN_DIRS` so required issuer addons are
+  installed into the core runtime image.
+- Updated source deployment presets to mount
+  `deploy/config/config.issuers.example.yml` by default so generated runtime
+  config matches the currently implemented local issuer schema.
+- Updated deploy bootstrap and documentation defaults to use the
+  parser-compatible issuer example configuration and clearly mark the remote
+  config example as a non-default sketch.
+
 ## [0.2.8] - 2026-05-21
 
 ### Added
