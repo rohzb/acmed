@@ -7,6 +7,8 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-28
+
 ### Changed
 - Simplified Docker runtime to a single standard image that installs `acmed`,
   `acme.sh`, `certbot`, and certbot DNS plugins directly (no plugin addon
