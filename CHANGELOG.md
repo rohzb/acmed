@@ -7,6 +7,12 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-06-01
+
+### Fixed
+- Avoided forcing `acme.sh --install-cert --ecc` during CSR (`--signcsr`) issuance flows so RSA CSR requests no longer fail artifact export with missing `certificate.pem`/`fullchain.pem`.
+- Added regression coverage to assert CSR install flow does not append `--ecc`.
+
 ## [0.3.4] - 2026-05-28
 
 ### Fixed

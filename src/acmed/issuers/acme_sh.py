@@ -152,7 +152,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
                     str(key_path),
                 ]
             )
-        install_argv.append("--ecc")
+        if not use_signcsr:
+            install_argv.append("--ecc")
         install_result = self._run(argv=install_argv, profile=profile, cwd=request.artifacts_dir)
 
         command = " && ".join([" ".join(issue_result.command), " ".join(install_result.command)])
