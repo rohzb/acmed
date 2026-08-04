@@ -136,6 +136,22 @@ def test_respond_json_uses_compact_encoding_for_client_compatibility():
     assert '"certificate":"http://example/cert"' in rendered
 
 
+def test_respond_json_defaults_content_type_for_acme_clients():
+    headers_holder = []
+
+    def start_response(_status, headers):
+        headers_holder.extend(headers)
+
+    _respond_json(
+        start_response,
+        201,
+        {"status": "valid"},
+        {"Replay-Nonce": "nonce-1", "Location": "https://acme.example.org/acme/account/acc-1"},
+    )
+
+    assert ("Content-Type", "application/json") in headers_holder
+
+
 def test_listener_certificate_bootstrap_uses_worker_path(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
