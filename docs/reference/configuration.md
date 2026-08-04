@@ -15,13 +15,25 @@ Configuration examples should stay aligned with the documented delivery and test
 server:
   host: 0.0.0.0
   port: 8443
-  tls_enabled: true
-  tls_cert_file: /etc/acmed/tls/server.crt
-  tls_key_file: /etc/acmed/tls/server.key
+  tls_enabled: false
   development_mode: false
   external_base_url: null
   trust_forwarded_headers: false
   trusted_proxy_cidrs: []
+  extra_listeners:
+    - host: 0.0.0.0
+      port: 9443
+      tls_enabled: true
+      tls_cert_file: /app/data/listener/fullchain.pem
+      tls_key_file: /app/data/listener/privkey.pem
+  listener_certificate:
+    enabled: true
+    domains:
+      - acme.example.org
+    requester_id: acmed-listener
+    requester_ip: 127.0.0.1
+    renew_before_days: 30
+    timeout_seconds: 600
 
 identity:
   api_tokens:
@@ -179,7 +191,16 @@ TLS listener rules:
 
 - when `server.tls_enabled: true`, both `server.tls_cert_file` and `server.tls_key_file` are required
 - startup fails if either TLS file path is missing or does not exist
-- `server.tls_enabled: false` is only allowed in `server.development_mode: true`
+- `server.extra_listeners` can add additional HTTP or HTTPS listeners served
+  by the same process
+- `server.tls_enabled: false` is allowed outside development only when at
+  least one extra HTTPS listener is configured
+- `server.listener_certificate.enabled: true` lets `acmed` issue or renew its
+  own listener certificate through the configured policy, proof, worker, and
+  issuer pipeline before binding TLS sockets
+- when listener certificate bootstrap is enabled, the configured TLS cert/key
+  paths may be absent at process start because `acmed` creates them before
+  binding the HTTPS listener
 
 ### 1.3 Identity and admin configuration
 

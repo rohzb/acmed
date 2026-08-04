@@ -1,11 +1,19 @@
 import io
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from acmed.errors import AcmeProblemError
-from acmed.main import _base_url, _read_body, _respond_json, build_wsgi_app
+from acmed.main import (
+    _base_url,
+    _ensure_listener_certificate,
+    _read_body,
+    _respond_json,
+    build_runtime,
+    build_wsgi_app,
+)
 
 
 def _make_cfg(*, external_base_url=None, trust_forwarded_headers=False, trusted_proxy_cidrs=None):
@@ -126,3 +134,90 @@ def test_respond_json_uses_compact_encoding_for_client_compatibility():
     rendered = body.decode("utf-8")
     assert '"status":"valid"' in rendered
     assert '"certificate":"http://example/cert"' in rendered
+
+
+def test_listener_certificate_bootstrap_uses_worker_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    cert_path = tmp_path / "tls" / "fullchain.pem"
+    key_path = tmp_path / "tls" / "privkey.pem"
+    config_path = tmp_path / "config.yml"
+    config_path.write_text(
+        f"""
+server:
+  host: 127.0.0.1
+  port: 8443
+  tls_enabled: false
+  development_mode: false
+  extra_listeners:
+    - host: 127.0.0.1
+      port: 9443
+      tls_enabled: true
+      tls_cert_file: {cert_path}
+      tls_key_file: {key_path}
+  listener_certificate:
+    enabled: true
+    domains: [host1.lab.example.org]
+    timeout_seconds: 10
+
+identity:
+  api_tokens:
+    enabled: true
+    tokens:
+      - token_id: t1
+        subject: acmed-admin
+        secret_env: ACMED_TEST_TOKEN
+        roles: [requester]
+  mtls:
+    enabled: false
+
+access:
+  admin_subjects: [acmed-admin]
+
+acme:
+  require_eab: false
+
+storage:
+  sqlite_path: {tmp_path / 'acmed.db'}
+  artifacts_root: {tmp_path / 'orders'}
+
+workers:
+  poll_interval_seconds: 1
+
+issuers:
+  - name: mock
+    type: mock
+
+proof_handlers:
+  - name: no-proof
+    type: none
+
+authorizers:
+  - name: loopback
+    type: source_subnet
+    source_subnets: [127.0.0.0/8]
+
+policies:
+  - name: listener
+    requester_match:
+      authorizers: [loopback]
+    allowed_domains:
+      - syntax: exact
+        value: host1.lab.example.org
+    allowed_issuers: [mock]
+    proof_handler: no-proof
+""",
+        encoding="utf-8",
+    )
+    runtime = build_runtime(str(config_path))
+    runtime.worker.start()
+    try:
+        _ensure_listener_certificate(runtime)
+    finally:
+        runtime.worker.stop()
+        runtime.storage.close()
+
+    assert "BEGIN CERTIFICATE" in cert_path.read_text(encoding="utf-8")
+    assert "BEGIN PRIVATE KEY" in key_path.read_text(encoding="utf-8")

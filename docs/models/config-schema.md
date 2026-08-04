@@ -19,6 +19,30 @@
 
 ## Policy Matcher Shape
 
+## Server Listener Shape
+
+### `server.extra_listeners[]`
+
+| Field | Required | Notes |
+|---|---|---|
+| `host` | no | Listener bind host; defaults to `0.0.0.0` |
+| `port` | yes | Listener port |
+| `tls_enabled` | no | Enables TLS for this listener |
+| `tls_cert_file` | when TLS enabled | PEM full-chain path |
+| `tls_key_file` | when TLS enabled | PEM private-key path |
+
+### `server.listener_certificate`
+
+| Field | Required | Notes |
+|---|---|---|
+| `enabled` | no | Enables self-bootstrap for configured TLS listener files |
+| `domains` | when enabled | DNS names for the listener certificate |
+| `issuer_name` | no | Optional configured issuer override |
+| `requester_id` | no | Internal requester identity, default `acmed-listener` |
+| `requester_ip` | no | Internal requester IP evidence, default `127.0.0.1` |
+| `renew_before_days` | no | Renewal window, default `30` |
+| `timeout_seconds` | no | Startup wait for issuance, default `600` |
+
 ### `allowed_domains[]`
 
 | Field | Required | Notes |
@@ -48,3 +72,5 @@
 - Reject inline token secrets when `secret_env` is expected.
 - Require `trusted_client_ca_file` when `identity.mtls.enabled` is true.
 - Reject insecure production TLS combinations unless explicitly marked development-only.
+- Allow missing listener TLS files at startup only when
+  `server.listener_certificate.enabled` is true.

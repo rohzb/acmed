@@ -168,6 +168,38 @@ def test_tls_enabled_requires_cert_and_key(tmp_path: Path, monkeypatch: pytest.M
         load_config(path)
 
 
+def test_listener_certificate_bootstrap_allows_missing_tls_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
+    cert_path = tmp_path / "listener" / "fullchain.pem"
+    key_path = tmp_path / "listener" / "privkey.pem"
+    config_text = _base_config(tmp_path).replace(
+        "  tls_enabled: false\n  development_mode: true",
+        (
+            "  tls_enabled: false\n"
+            "  development_mode: false\n"
+            "  extra_listeners:\n"
+            "    - host: 127.0.0.1\n"
+            "      port: 9443\n"
+            "      tls_enabled: true\n"
+            f"      tls_cert_file: {cert_path}\n"
+            f"      tls_key_file: {key_path}\n"
+            "  listener_certificate:\n"
+            "    enabled: true\n"
+            "    domains: [host1.lab.example.org]\n"
+        ),
+    )
+    path = tmp_path / "cfg.yml"
+    path.write_text(config_text, encoding="utf-8")
+
+    cfg = load_config(path)
+
+    assert cfg.server.extra_listeners[0].tls_enabled is True
+    assert cfg.server.listener_certificate.enabled is True
+
+
 def test_load_config_rejects_unknown_issuer_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ACMED_TEST_TOKEN", "secret")
     config_text = _base_config(tmp_path).replace(

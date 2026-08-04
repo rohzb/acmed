@@ -9,12 +9,18 @@ import json
 import ipaddress
 import signal
 import ssl
+import shutil
 import sys
+import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import FrameType
 from typing import Any
 from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
+
+from cryptography import x509
 
 from .acme_api import AcmeApiService, SignedAcmeRequest
 from .acme_jws import parse_and_verify_acme_jws
@@ -22,6 +28,8 @@ from .api import ApiService
 from .auth import AuthService
 from .config import AppConfig, load_config
 from .errors import AcmedError, AcmeProblemError
+from .models import CsrSource, OrderRequest, OrderStatus, PrivateKeyPolicy
+from .policy import resolve_policy
 from .storage import Storage
 from .worker import Worker
 
@@ -202,25 +210,165 @@ def run(config_path: str) -> None:
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
 
-    app = build_wsgi_app(runtime)
-    with make_server(runtime.config.server.host, runtime.config.server.port, app) as server:
-        if runtime.config.server.tls_enabled:
-            cert_file = runtime.config.server.tls_cert_file
-            key_file = runtime.config.server.tls_key_file
-            if cert_file is None or key_file is None:
-                raise RuntimeError(
-                    "TLS is enabled but tls_cert_file or tls_key_file is not configured"
+    try:
+        _ensure_listener_certificate(runtime)
+        app = build_wsgi_app(runtime)
+        servers = [
+            _make_wsgi_server(
+                host=runtime.config.server.host,
+                port=runtime.config.server.port,
+                app=app,
+                tls_cert_file=runtime.config.server.tls_cert_file
+                if runtime.config.server.tls_enabled
+                else None,
+                tls_key_file=runtime.config.server.tls_key_file
+                if runtime.config.server.tls_enabled
+                else None,
+            )
+        ]
+        for listener in runtime.config.server.extra_listeners or []:
+            servers.append(
+                _make_wsgi_server(
+                    host=listener.host,
+                    port=listener.port,
+                    app=app,
+                    tls_cert_file=listener.tls_cert_file if listener.tls_enabled else None,
+                    tls_key_file=listener.tls_key_file if listener.tls_enabled else None,
                 )
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            context.minimum_version = ssl.TLSVersion.TLSv1_2
-            context.load_cert_chain(certfile=cert_file, keyfile=key_file)
-            server.socket = context.wrap_socket(server.socket, server_side=True)
-        server.timeout = 1
-        while not should_stop["value"]:
-            server.handle_request()
+            )
+        try:
+            while not should_stop["value"]:
+                for server in servers:
+                    server.handle_request()
+        finally:
+            for server in servers:
+                server.server_close()
+    finally:
+        runtime.worker.stop()
+        runtime.storage.close()
 
-    runtime.worker.stop()
-    runtime.storage.close()
+
+def _make_wsgi_server(
+    host: str,
+    port: int,
+    app: Any,
+    tls_cert_file: str | None = None,
+    tls_key_file: str | None = None,
+):
+    """Create one WSGI listener with optional TLS wrapping."""
+
+    server = make_server(host, port, app)
+    if tls_cert_file or tls_key_file:
+        if tls_cert_file is None or tls_key_file is None:
+            raise RuntimeError("TLS listener requires both cert and key files")
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(certfile=tls_cert_file, keyfile=tls_key_file)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+    server.timeout = 1
+    return server
+
+
+def _ensure_listener_certificate(runtime: AppRuntime) -> None:
+    """Issue or renew acmed's own TLS listener certificate when configured."""
+
+    bootstrap = runtime.config.server.listener_certificate
+    if bootstrap is None or not bootstrap.enabled:
+        return
+    targets = _listener_certificate_targets(runtime.config)
+    if not targets:
+        raise RuntimeError("listener certificate bootstrap requires TLS listener file paths")
+    primary_cert, _primary_key = targets[0]
+    if _certificate_is_fresh(primary_cert, bootstrap.renew_before_days):
+        return
+
+    resolved = resolve_policy(
+        config=runtime.config,
+        requester_authorizers=set(),
+        dns_names=bootstrap.domains or [],
+        requested_issuer=bootstrap.issuer_name,
+        csr_source=CsrSource.SERVICE_GENERATED,
+        enforce_authorizers=False,
+    )
+    order, _created = runtime.storage.create_order(
+        request=OrderRequest(
+            requester_id=bootstrap.requester_id,
+            requester_ip=bootstrap.requester_ip,
+            request_source="listener_certificate",
+            dns_names=bootstrap.domains or [],
+            common_name=(bootstrap.domains or [None])[0],
+            issuer_name=resolved.issuer_name,
+        ),
+        issuer_name=resolved.issuer_name,
+        proof_handler_name=resolved.proof_handler_name,
+        challenge_validation_mode=resolved.policy.challenge_validation_mode,
+        private_key_policy=PrivateKeyPolicy.SERVICE_GENERATED,
+        max_retries=runtime.config.orders.max_retries,
+        ttl_seconds=runtime.config.orders.default_ttl_seconds,
+    )
+
+    deadline = time.monotonic() + bootstrap.timeout_seconds
+    while time.monotonic() < deadline:
+        current = runtime.storage.get_order(order.id)
+        if current.status == OrderStatus.ISSUED:
+            _install_listener_certificate(runtime, order.id, targets)
+            return
+        if current.status in {OrderStatus.FAILED, OrderStatus.DENIED, OrderStatus.EXPIRED}:
+            raise RuntimeError(
+                f"listener certificate order {order.id} ended with {current.status}"
+            )
+        time.sleep(min(1, runtime.config.workers.poll_interval_seconds))
+    raise RuntimeError(f"listener certificate order {order.id} did not finish before timeout")
+
+
+def _listener_certificate_targets(config: AppConfig) -> list[tuple[Path, Path]]:
+    """Return cert/key destinations for configured TLS listeners."""
+
+    targets: list[tuple[Path, Path]] = []
+    if config.server.tls_enabled and config.server.tls_cert_file and config.server.tls_key_file:
+        targets.append((Path(config.server.tls_cert_file), Path(config.server.tls_key_file)))
+    for listener in config.server.extra_listeners or []:
+        if listener.tls_enabled and listener.tls_cert_file and listener.tls_key_file:
+            targets.append((Path(listener.tls_cert_file), Path(listener.tls_key_file)))
+    return targets
+
+
+def _certificate_is_fresh(path: Path, renew_before_days: int) -> bool:
+    """Return whether a PEM certificate exists and is outside the renewal window."""
+
+    if not path.exists():
+        return False
+    cert = x509.load_pem_x509_certificate(path.read_bytes())
+    renew_after = datetime.now(timezone.utc) + timedelta(days=renew_before_days)
+    return cert.not_valid_after_utc > renew_after
+
+
+def _install_listener_certificate(
+    runtime: AppRuntime,
+    order_id: str,
+    targets: list[tuple[Path, Path]],
+) -> None:
+    """Copy issued order artifacts to configured listener certificate paths."""
+
+    artifact_dir = runtime.config.storage.artifacts_root / order_id
+    source_cert = artifact_dir / "fullchain.pem"
+    source_key = artifact_dir / "private.key"
+    if not source_cert.exists() or not source_key.exists():
+        raise RuntimeError(f"listener certificate artifacts missing for order {order_id}")
+    for cert_path, key_path in targets:
+        _atomic_copy(source_cert, cert_path, 0o640)
+        _atomic_copy(source_key, key_path, 0o600)
+
+
+def _atomic_copy(source: Path, destination: Path, mode: int) -> None:
+    """Copy a file through a temporary path before replacing the destination."""
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = destination.with_name(f".{destination.name}.tmp")
+    shutil.copyfile(source, tmp_path)
+    tmp_path.chmod(mode)
+    tmp_path.replace(destination)
+    destination.chmod(mode)
 
 
 def _parse_signed_request(environ: dict[str, Any], config: AppConfig) -> SignedAcmeRequest:

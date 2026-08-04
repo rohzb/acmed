@@ -14,7 +14,7 @@ from typing import Any, Literal
 import yaml
 
 from .errors import ConfigError
-from .utils import normalize_dns_name
+from .utils import normalize_dns_name, normalize_dns_names
 
 MatcherSyntax = Literal["exact", "suffix", "regex"]
 IssuerType = Literal["acme_sh", "certbot", "mock"]
@@ -32,6 +32,30 @@ class ServerConfig:
     external_base_url: str | None = None
     trust_forwarded_headers: bool = False
     trusted_proxy_cidrs: list[str] | None = None
+    extra_listeners: list["ServerListenerConfig"] | None = None
+    listener_certificate: "ListenerCertificateConfig | None" = None
+
+
+@dataclass(slots=True)
+class ServerListenerConfig:
+    """Additional HTTP or HTTPS listener configuration."""
+    host: str = "0.0.0.0"
+    port: int = 8443
+    tls_enabled: bool = False
+    tls_cert_file: str | None = None
+    tls_key_file: str | None = None
+
+
+@dataclass(slots=True)
+class ListenerCertificateConfig:
+    """Certificate bootstrap settings for acmed's own HTTPS listener."""
+    enabled: bool = False
+    domains: list[str] | None = None
+    issuer_name: str | None = None
+    requester_id: str = "acmed-listener"
+    requester_ip: str = "127.0.0.1"
+    renew_before_days: int = 30
+    timeout_seconds: int = 600
 
 
 @dataclass(slots=True)
@@ -356,18 +380,47 @@ def load_config(path: str | Path) -> AppConfig:
 
     regex_enabled = bool(raw.get("features", {}).get("regex_policy_mode_enabled", False))
 
-    server = ServerConfig(**raw.get("server", {}))
+    server_raw = dict(raw.get("server", {}))
+    raw_extra_listeners = server_raw.pop("extra_listeners", [])
+    raw_listener_certificate = server_raw.pop("listener_certificate", None)
+    server = ServerConfig(**server_raw)
+    if raw_extra_listeners is None:
+        raw_extra_listeners = []
+    if not isinstance(raw_extra_listeners, list):
+        raise ConfigError("server.extra_listeners must be a list")
+    server.extra_listeners = [ServerListenerConfig(**item) for item in raw_extra_listeners]
+    if raw_listener_certificate is not None:
+        if not isinstance(raw_listener_certificate, dict):
+            raise ConfigError("server.listener_certificate must be a mapping")
+        server.listener_certificate = ListenerCertificateConfig(**raw_listener_certificate)
+    else:
+        server.listener_certificate = ListenerCertificateConfig()
+    bootstrap_enabled = server.listener_certificate.enabled
+
     if not server.tls_enabled and not server.development_mode:
-        raise ConfigError("TLS must be enabled outside development mode")
+        if not any(listener.tls_enabled for listener in server.extra_listeners):
+            raise ConfigError("TLS must be enabled outside development mode")
     if server.tls_enabled:
         if not server.tls_cert_file or not server.tls_key_file:
             raise ConfigError(
                 "server.tls_enabled=true requires server.tls_cert_file and server.tls_key_file"
             )
-        if not Path(server.tls_cert_file).exists():
+        if not bootstrap_enabled and not Path(server.tls_cert_file).exists():
             raise ConfigError(f"TLS certificate file not found: {server.tls_cert_file}")
-        if not Path(server.tls_key_file).exists():
+        if not bootstrap_enabled and not Path(server.tls_key_file).exists():
             raise ConfigError(f"TLS key file not found: {server.tls_key_file}")
+    for listener in server.extra_listeners:
+        if listener.port <= 0 or listener.port > 65535:
+            raise ConfigError("server.extra_listeners entries require a valid port")
+        if listener.tls_enabled:
+            if not listener.tls_cert_file or not listener.tls_key_file:
+                raise ConfigError(
+                    "TLS extra listeners require tls_cert_file and tls_key_file"
+                )
+            if not bootstrap_enabled and not Path(listener.tls_cert_file).exists():
+                raise ConfigError(f"TLS certificate file not found: {listener.tls_cert_file}")
+            if not bootstrap_enabled and not Path(listener.tls_key_file).exists():
+                raise ConfigError(f"TLS key file not found: {listener.tls_key_file}")
     if server.trust_forwarded_headers:
         if not server.trusted_proxy_cidrs:
             raise ConfigError(
@@ -383,6 +436,24 @@ def load_config(path: str | Path) -> AppConfig:
         if "://" not in base:
             raise ConfigError("server.external_base_url must include scheme")
         server.external_base_url = base.rstrip("/")
+    if bootstrap_enabled:
+        listener_certificate = server.listener_certificate
+        assert listener_certificate is not None
+        if not listener_certificate.domains:
+            raise ConfigError("server.listener_certificate.domains must not be empty")
+        listener_certificate.domains = normalize_dns_names(listener_certificate.domains)
+        _must_be_positive(
+            "server.listener_certificate.renew_before_days",
+            listener_certificate.renew_before_days,
+        )
+        _must_be_positive(
+            "server.listener_certificate.timeout_seconds",
+            listener_certificate.timeout_seconds,
+        )
+        if not any(
+            (server.tls_enabled, *(listener.tls_enabled for listener in server.extra_listeners))
+        ):
+            raise ConfigError("server.listener_certificate requires at least one TLS listener")
 
     identity = _load_tokens(raw.get("identity", {}))
     access = AccessConfig(admin_subjects=_validate_admin_subjects(raw.get("access", {}).get("admin_subjects", [])))

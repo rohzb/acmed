@@ -17,6 +17,9 @@ This document summarizes what is currently implemented in this repository state.
 - challenge validation for `http-01`, `dns-01`, and `tls-alpn-01`
 - pre-authorization enforcement at ACME `newOrder` using configured authorizers and request source evidence
 - policy-scoped `challenge_validation_mode` with `strict` default and development-only `trusted_bypass`
+- optional native HTTPS extra listeners with startup listener-certificate
+  bootstrap through the same policy, worker, and issuer pipeline used for
+  normal orders
 
 ## 2. Implemented Module Layout
 
