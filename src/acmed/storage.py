@@ -459,7 +459,7 @@ class Storage:
             row = conn.execute(
                 """
                 SELECT id, status FROM orders
-                WHERE status IN ('pending','authorized')
+                WHERE status IN ('pending','authorized','issuing')
                   AND expires_at > ?
                   AND (claim_expires_at IS NULL OR claim_expires_at <= ?)
                   AND (
@@ -476,8 +476,13 @@ class Storage:
                 return None
 
             current = OrderStatus(row["status"])
-            next_state = OrderStatus.AUTHORIZING if current == OrderStatus.PENDING else OrderStatus.ISSUING
-            if next_state not in ALLOWED_TRANSITIONS[current]:
+            if current == OrderStatus.PENDING:
+                next_state = OrderStatus.AUTHORIZING
+            elif current == OrderStatus.AUTHORIZED:
+                next_state = OrderStatus.ISSUING
+            else:
+                next_state = current
+            if next_state != current and next_state not in ALLOWED_TRANSITIONS[current]:
                 raise StorageError("invalid claim transition")
 
             updated = conn.execute(
