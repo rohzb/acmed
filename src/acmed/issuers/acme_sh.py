@@ -1,6 +1,12 @@
 """acme.sh issuer backend wrapper.
 
-This module contains implementation used by the acmed runtime and plugin surfaces.
+The worker calls this adapter for service-generated keys or client-provided
+RSA/EC CSRs. Certificate installation selects the corresponding acme.sh lineage;
+client-CSR results are checked against both returned certificate artifacts so
+cached certificates for another key cannot be reported as successful issuance.
+
+Author: Ruslan Ovsyannikov
+License: MIT
 """
 
 from __future__ import annotations
@@ -12,10 +18,11 @@ import tempfile
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from ..config import IssuerProfile
 from .base import IssueRequest, IssueResult
-from .subprocess_backend import SubprocessIssuerMixin
+from .subprocess_backend import SubprocessIssuerMixin, SubprocessResult
 
 
 @dataclass(slots=True)
@@ -45,6 +52,22 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         return cert_pub == key_pub
+
+    def _certificate_matches_csr(
+        self, certificate_pem: str | None, csr: x509.CertificateSigningRequest
+    ) -> bool:
+        """Compare the leaf public key with the finalized client's CSR key."""
+        if not certificate_pem:
+            return False
+        try:
+            certificate = x509.load_pem_x509_certificate(certificate_pem.encode("utf-8"))
+        except ValueError:
+            return False
+        return certificate.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+        ) == csr.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+        )
 
     def issue(self, profile: IssuerProfile, request: IssueRequest) -> IssueResult:
         """Run `acme.sh` using the configured issuer profile.
@@ -88,6 +111,24 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
         executable = profile.executable or "acme.sh"
         acmesh_home = os.environ.get("ACMED_ACMESH_HOME", self._DEFAULT_ACMESH_HOME)
         use_signcsr = request.csr_pem is not None
+        csr: x509.CertificateSigningRequest | None = None
+        use_ecc = not use_signcsr
+        if request.csr_pem is not None:
+            try:
+                csr = x509.load_pem_x509_csr(request.csr_pem.encode("utf-8"))
+                public_key = csr.public_key()
+                if not isinstance(public_key, (rsa.RSAPublicKey, ec.EllipticCurvePublicKey)):
+                    raise ValueError("acme.sh requires an RSA or EC CSR public key")
+                use_ecc = isinstance(public_key, ec.EllipticCurvePublicKey)
+            except ValueError as error:
+                return IssueResult(
+                    success=False,
+                    result_code="issuer_error",
+                    command=executable,
+                    exit_code=64,
+                    stdout="",
+                    stderr=f"invalid or unsupported client CSR: {error}",
+                )
         issue_argv = [
             executable,
             "--signcsr" if use_signcsr else "--issue",
@@ -152,7 +193,7 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
                     str(key_path),
                 ]
             )
-        if not use_signcsr:
+        if use_ecc:
             install_argv.append("--ecc")
         install_result = self._run(argv=install_argv, profile=profile, cwd=request.artifacts_dir)
 
@@ -188,6 +229,21 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
                 chain_pem=chain,
                 fullchain_pem=fullchain,
                 private_key_pem=key,
+            )
+
+        if csr is not None and not all(
+            self._certificate_matches_csr(pem, csr) for pem in (cert, fullchain)
+        ):
+            return IssueResult(
+                success=False,
+                result_code="issuer_error",
+                command=command,
+                exit_code=66,
+                stdout=stdout,
+                stderr="\n".join(
+                    part for part in [stderr, "acme.sh certificate does not match client CSR public key"]
+                    if part
+                ),
             )
 
         if request.csr_pem is None and not self._pem_pair_matches(cert, key):

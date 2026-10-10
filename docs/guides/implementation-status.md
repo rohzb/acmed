@@ -14,6 +14,8 @@ This document summarizes what is currently implemented in this repository state.
 - plugin boundaries for authorizers, proof handlers, and issuer backends
 - `allow_all` and `source_subnet` authorizer implementations
 - mock issuer and subprocess wrappers for `acme.sh` and `certbot`
+- RSA/EC client-CSR lineage selection and returned certificate/CSR public-key
+  verification in the `acme.sh` adapter
 - challenge validation for `http-01`, `dns-01`, and `tls-alpn-01`
 - pre-authorization enforcement at ACME `newOrder` using configured authorizers and request source evidence
 - policy-scoped `challenge_validation_mode` with `strict` default and development-only `trusted_bypass`

@@ -463,6 +463,10 @@ Expected validation rules:
 
 - CSR identifiers must match the order identifiers
 - unsupported CSR extensions should be rejected
+- the issued leaf certificate and the leaf returned in the full chain must match
+  the finalized CSR public key; a mismatch is an issuer failure, never a valid order
+- the `acme.sh` adapter accepts RSA and EC client CSRs and selects the matching
+  RSA/ECC installation lineage; malformed or unsupported keys fail before invoking it
 - finalize should fail cleanly if the order is not ready
 
 Ownership rule:

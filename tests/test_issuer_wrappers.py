@@ -1,3 +1,14 @@
+"""Issuer subprocess regressions, including client-CSR certificate integrity."""
+
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.x509.oid import NameOID
+
 from acmed.config import IssuerProfile
 from acmed.errors import WorkerError
 from acmed.issuers import IssueRequest
@@ -323,44 +334,105 @@ def test_acme_sh_force_renew_adds_force_flag(monkeypatch, tmp_path):
     assert "--ecc" in calls[1]
 
 
-def test_acme_sh_uses_signcsr_when_csr_provided(monkeypatch, tmp_path):
-    backend = AcmeShIssuerBackend()
-    calls = []
+def _csr_and_certificate(key_kind: str) -> tuple[str, str]:
+    """Create real matching public artifacts without any external issuance."""
+    key = (
+        ec.generate_private_key(ec.SECP256R1()) if key_kind == "ec"
+        else rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    )
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "testme.amgro.de")])
+    csr = x509.CertificateSigningRequestBuilder().subject_name(subject).sign(key, hashes.SHA256())
+    now = datetime.now(timezone.utc)
+    certificate = (
+        x509.CertificateBuilder().subject_name(subject).issuer_name(subject)
+        .public_key(key.public_key()).serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(minutes=1)).not_valid_after(now + timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    return (
+        csr.public_bytes(serialization.Encoding.PEM).decode(),
+        certificate.public_bytes(serialization.Encoding.PEM).decode(),
+    )
 
-    def fake_run(argv, profile, cwd):  # noqa: ANN001
+
+@pytest.mark.parametrize("key_kind", ["rsa", "ec"])
+@pytest.mark.parametrize("artifact", ["matching", "wrong_key", "wrong_type", "wrong_fullchain", "malformed"])
+def test_acme_sh_uses_signcsr_when_csr_provided(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, key_kind: str, artifact: str
+) -> None:
+    """Accept matching RSA/EC results and reject stale issuer artifacts.
+
+    Args:
+        monkeypatch: Isolate issuer subprocess execution.
+        tmp_path: Per-test artifact directory.
+        key_kind: Client's requested RSA or EC key type.
+        artifact: Matching output or a stale/malformed returned artifact.
+    """
+    backend = AcmeShIssuerBackend()
+    calls: list[list[str]] = []
+    csr_pem, cert_pem = _csr_and_certificate(key_kind)
+    _, other_cert = _csr_and_certificate(
+        ("rsa" if key_kind == "ec" else "ec") if artifact == "wrong_type" else key_kind
+    )
+
+    def fake_run(argv: list[str], profile: IssuerProfile, cwd: str) -> SubprocessResult:
         calls.append(argv)
         if "--install-cert" in argv:
-            (tmp_path / "certificate.pem").write_text("CERT", encoding="utf-8")
-            (tmp_path / "chain.pem").write_text("CHAIN", encoding="utf-8")
-            (tmp_path / "fullchain.pem").write_text("FULLCHAIN", encoding="utf-8")
+            returned = other_cert if artifact in {"wrong_key", "wrong_type"} else cert_pem
+            if artifact == "malformed":
+                returned = "INVALID CERTIFICATE"
+            (tmp_path / "certificate.pem").write_text(returned, encoding="utf-8")
+            (tmp_path / "chain.pem").write_text("", encoding="utf-8")
+            (tmp_path / "fullchain.pem").write_text(
+                other_cert if artifact == "wrong_fullchain" else returned, encoding="utf-8"
+            )
         return SubprocessResult(command=argv, exit_code=0, stdout="ok", stderr="")
 
     monkeypatch.setattr(backend, "_run", fake_run)
-
     result = backend.issue(
         profile=IssuerProfile(
-            name="acmesh-dns",
-            type="acme_sh",
-            executable="/usr/local/bin/acme.sh",
-            challenge_mode="dns-01",
-            plugin_name="dns_hetznercloud",
+            name="acmesh-dns", type="acme_sh", executable="/usr/local/bin/acme.sh",
+            challenge_mode="dns-01", plugin_name="dns_hetznercloud",
         ),
         request=IssueRequest(
-            order_id="order-csr-1",
-            dns_names=["testme.amgro.de"],
-            common_name="testme.amgro.de",
-            csr_pem="-----BEGIN CERTIFICATE REQUEST-----\nMIIB\n-----END CERTIFICATE REQUEST-----\n",
-            artifacts_dir=str(tmp_path),
+            order_id="order-csr-1", dns_names=["testme.amgro.de"],
+            common_name="testme.amgro.de", csr_pem=csr_pem, artifacts_dir=str(tmp_path),
         ),
     )
-
-    assert result.success is True
+    assert result.success is (artifact == "matching")
     assert "--signcsr" in calls[0]
     assert "--csr" in calls[0]
     assert "--keylength" not in calls[0]
     assert "--issue" not in calls[0]
-    assert "--ecc" not in calls[1]
+    assert ("--ecc" in calls[1]) is (key_kind == "ec")
+    assert "--key-file" not in calls[1]
     assert result.private_key_pem is None
+    if artifact != "matching":
+        assert result.exit_code == 66
+        assert "does not match client CSR" in result.stderr
+        assert result.certificate_pem is None
+        assert result.fullchain_pem is None
+
+
+def test_acme_sh_rejects_malformed_csr_before_issuance(tmp_path: Path) -> None:
+    """Reject malformed client input before starting any issuer subprocess.
+
+    Args:
+        tmp_path: Per-test artifact directory.
+    """
+    result = AcmeShIssuerBackend().issue(
+        profile=IssuerProfile(
+            name="acmesh-dns", type="acme_sh", executable="/nonexistent/acme.sh",
+            challenge_mode="dns-01", plugin_name="dns_hetznercloud",
+        ),
+        request=IssueRequest(
+            order_id="invalid-csr", dns_names=["testme.amgro.de"], common_name="testme.amgro.de",
+            csr_pem="INVALID CSR", artifacts_dir=str(tmp_path),
+        ),
+    )
+    assert result.success is False
+    assert result.exit_code == 64
+    assert "invalid or unsupported client CSR" in result.stderr
 
 
 def test_certbot_marks_missing_required_artifacts_as_error(monkeypatch, tmp_path):
