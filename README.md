@@ -6,7 +6,7 @@
 [![Python Tests](https://github.com/rohzb/acmed/actions/workflows/ci.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/ci.yml)
 [![Docker Build Smoke Test](https://github.com/rohzb/acmed/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/docker-ci.yml)
 [![Security Checks](https://github.com/rohzb/acmed/actions/workflows/security-checks.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/security-checks.yml)
-[![Release Pipeline](https://github.com/rohzb/acmed/actions/workflows/release.yml/badge.svg)](https://github.com/rohzb/acmed/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/rohzb/acmed)](https://github.com/rohzb/acmed/releases/latest)
 
 `acmed` (ACME Daemon) is an ACME-first broker service for internal infrastructure.
 
