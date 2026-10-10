@@ -28,6 +28,7 @@ For release and artifact lifecycle policy:
 - [`reference/versioning.md`](reference/versioning.md)
 - [`../CHANGELOG.md`](../CHANGELOG.md)
 - [`releases/`](releases/)
+- [`releases/v0.4.0.md`](releases/v0.4.0.md) for the latest release
 
 Human-facing material lives in `guides/`, `reference/`, `tutorials/`, and `architecture/`.
 Structured machine-oriented contracts live in [`models/`](models/README.md).

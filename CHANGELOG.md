@@ -7,6 +7,25 @@ The format is inspired by Keep a Changelog and follows the repository policy in
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-10
+
+### Added
+- Optional extra HTTPS listeners and startup listener-certificate bootstrapping
+  through the existing policy, worker and issuer pipeline.
+
+### Fixed
+- Select the acme.sh RSA/ECC certificate-installation lineage from the client
+  CSR public-key type, preserving RSA support and correcting EC client issuance.
+- Reject standalone or full-chain leaf certificates that do not match the
+  finalized client CSR public key, including stale certificates for another key.
+- Reject malformed or unsupported client CSR keys before invoking acme.sh.
+- Return JSON response Content-Type consistently and include `issuing` orders
+  in the worker claim lifecycle.
+
+### Tests
+- Cover RSA/EC issuance, wrong keys and algorithms, stale full-chain output,
+  malformed artifacts, optional HTTPS configuration and listener bootstrapping.
+
 ## [0.3.5] - 2026-06-01
 
 ### Fixed
