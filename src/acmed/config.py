@@ -133,6 +133,7 @@ class IssuerProfile:
     credential_env: list[str] | None = None
     timeout_seconds: int = 120
     force_renew: bool = False
+    reuse_client_certificates: bool = False
 
 
 @dataclass(slots=True)
@@ -269,6 +270,7 @@ def _load_issuers(raw_issuers: list[dict[str, Any]], regex_enabled: bool) -> lis
         "credential_env",
         "timeout_seconds",
         "force_renew",
+        "reuse_client_certificates",
     }
     issuers: list[IssuerProfile] = []
     for raw in raw_issuers:
@@ -281,6 +283,10 @@ def _load_issuers(raw_issuers: list[dict[str, Any]], regex_enabled: bool) -> lis
         raise ConfigError("duplicate issuer profile names are not allowed")
 
     for issuer in issuers:
+        if not isinstance(issuer.reuse_client_certificates, bool):
+            raise ConfigError("issuer reuse_client_certificates must be a boolean")
+        if issuer.reuse_client_certificates and issuer.type != "acme_sh":
+            raise ConfigError("client certificate reuse currently requires acme_sh")
         if not issuer.name.strip():
             raise ConfigError("issuer name must not be empty")
         if issuer.type not in {"acme_sh", "certbot", "mock"}:

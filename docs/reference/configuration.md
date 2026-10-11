@@ -1,3 +1,8 @@
+---
+title: acmed Policy And Configuration
+nav_title: Configuration
+---
+
 # acmed Policy And Configuration
 
 For schema-style automation input, see [`../models/config-schema.md`](../models/config-schema.md).
@@ -238,6 +243,10 @@ Each issuer profile should declare:
 - the external validation mode such as `dns-01` or `http-01`
 - the external plugin name when one is required
 - optional `force_renew` (`true|false`) for `acme_sh` backends
+- optional `reuse_client_certificates` (`true|false`, default `false`) for
+  `acme_sh`: reuse previously issued client-CSR certificates when the same
+  issuer profile, CA, exact DNS set and public key are requested, with more
+  than 30 days remaining. `force_renew: true` overrides reuse.
 - the credential environment variables needed by that issuer
 
 Issuer-profile rules:
@@ -248,6 +257,23 @@ Issuer-profile rules:
 - keep credential sources outside YAML secret literals
 - reject startup if an issuer profile references an unsupported adapter type or missing executable path
 - reject startup if two issuer profiles share the same name
+
+Client-certificate reuse stores only public certificate artifacts beneath
+`ACMED_ACMESH_HOME/client-certificates`, using an opaque digest of issuer
+settings, DNS names and the CSR public key. It does not store or recover client
+private keys and does not bypass account ownership, policy or challenges.
+On a cache miss the adapter forces upstream fulfillment of the supplied CSR,
+preventing acme.sh from substituting a cached lineage for another client key.
+Missing, malformed, mismatching, not-yet-valid or near-expiry entries fall back
+to normal issuance. Successful client-CSR issuance populates the cache only
+when reuse is enabled. Existing certificates are not imported automatically.
+The cache is trusted broker state; protect it with the same permissions and
+backup lifecycle as the issuer's other state. Remove a cached entry after
+external revocation; automatic upstream revocation discovery is not supported.
+
+Retain the client's matching private key across reinstalls. A hostname or cache
+digest alone cannot reconstruct that key or make an old certificate valid for
+a new key. No additional recovery API or bearer recovery token is introduced.
 
 ## 3. Policy Matcher Syntax
 

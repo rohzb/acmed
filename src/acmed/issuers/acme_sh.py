@@ -22,6 +22,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from ..config import IssuerProfile
 from .base import IssueRequest, IssueResult
+from .client_certificates import cache_path, read_cached, write_cached
 from .subprocess_backend import SubprocessIssuerMixin, SubprocessResult
 
 
@@ -116,6 +117,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
         if request.csr_pem is not None:
             try:
                 csr = x509.load_pem_x509_csr(request.csr_pem.encode("utf-8"))
+                if not csr.is_signature_valid:
+                    raise ValueError("client CSR signature is invalid")
                 public_key = csr.public_key()
                 if not isinstance(public_key, (rsa.RSAPublicKey, ec.EllipticCurvePublicKey)):
                     raise ValueError("acme.sh requires an RSA or EC CSR public key")
@@ -129,6 +132,13 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
                     stdout="",
                     stderr=f"invalid or unsupported client CSR: {error}",
                 )
+        client_cache: Path | None = None
+        if csr is not None and profile.reuse_client_certificates:
+            client_cache = cache_path(acmesh_home, profile, request)
+            if not profile.force_renew:
+                cached = read_cached(client_cache, request)
+                if cached is not None:
+                    return cached
         issue_argv = [
             executable,
             "--signcsr" if use_signcsr else "--issue",
@@ -148,7 +158,8 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             issue_argv.extend(["--csr", str(csr_path)])
         if not use_signcsr:
             issue_argv.extend(["--keylength", "ec-256"])
-        if profile.force_renew:
+        # A cache miss must fulfill this CSR rather than reuse another lineage key.
+        if profile.force_renew or (csr is not None and profile.reuse_client_certificates):
             issue_argv.append("--force")
         for dns_name in request.dns_names:
             issue_argv.extend(["-d", dns_name])
@@ -264,7 +275,7 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
                 private_key_pem=key,
             )
 
-        return IssueResult(
+        result = IssueResult(
             success=install_result.exit_code == 0,
             result_code="issued" if install_result.exit_code == 0 else "issuer_error",
             command=command,
@@ -276,6 +287,12 @@ class AcmeShIssuerBackend(SubprocessIssuerMixin):
             fullchain_pem=fullchain,
             private_key_pem=key,
         )
+        if result.success and client_cache is not None:
+            try:
+                write_cached(client_cache, result)
+            except OSError:
+                result.stderr += "\nClient-certificate cache could not be written."
+        return result
 
     def _is_existing_cert_reuse_hint(self, result: SubprocessResult) -> bool:
         """Return whether acme.sh asks to reuse existing cert state.

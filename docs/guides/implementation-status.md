@@ -1,3 +1,8 @@
+---
+title: acmed Implementation Status
+nav_title: Implementation status
+---
+
 # acmed Implementation Status
 
 This document summarizes what is currently implemented in this repository state.
@@ -16,6 +21,9 @@ This document summarizes what is currently implemented in this repository state.
 - mock issuer and subprocess wrappers for `acme.sh` and `certbot`
 - RSA/EC client-CSR lineage selection and returned certificate/CSR public-key
   verification in the `acme.sh` adapter
+- opt-in public client-certificate reuse in the `acme.sh` adapter, scoped by
+  issuer, CA, exact DNS names and CSR key, outside a fixed 30-day renewal window;
+  forced renewal bypasses reuse, and client private keys remain client-owned
 - challenge validation for `http-01`, `dns-01`, and `tls-alpn-01`
 - pre-authorization enforcement at ACME `newOrder` using configured authorizers and request source evidence
 - policy-scoped `challenge_validation_mode` with `strict` default and development-only `trusted_bypass`

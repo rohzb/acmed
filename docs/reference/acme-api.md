@@ -1,3 +1,8 @@
+---
+title: acmed ACME API Reference
+nav_title: ACME API
+---
+
 # acmed ACME API Reference
 
 For automation and machine-checked integrations, see the compact contract in [`../models/acme-api-contract.md`](../models/acme-api-contract.md).
@@ -468,6 +473,13 @@ Expected validation rules:
 - the `acme.sh` adapter accepts RSA and EC client CSRs and selects the matching
   RSA/ECC installation lineage; malformed or unsupported keys fail before invoking it
 - finalize should fail cleanly if the order is not ready
+
+When the selected `acme_sh` profile enables client-certificate reuse, fulfillment
+may return a previously issued certificate for the exact same DNS names and
+CSR public key, provided its remaining lifetime exceeds 30 days. Account
+ownership, authorization and challenge validation remain required. This does
+not transfer or recreate the client's private key. See
+[issuer configuration](configuration.md) for cache scope and opt-in settings.
 
 Ownership rule:
 
